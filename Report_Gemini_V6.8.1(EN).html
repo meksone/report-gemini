@@ -1525,35 +1525,72 @@
                                 if (context.chart.config.type === 'line') return false;
                                 return context.dataset.data[context.dataIndex] > 0;
                             },
+                            clamp: false,
                             color: (ctx) => {
                                 if (type === 'line') return '#334155';
-                                if (type === 'bar' && !isStacked) return '#1e293b';
                                 if (!isStacked && (type === 'pie' || type === 'doughnut')) return '#1e293b';
-                                if (isStacked && ctx.datasetIndex === 0) return '#ffffff';
+                                if (type === 'bar') {
+                                    const val = ctx.dataset.data[ctx.dataIndex];
+                                    const allVals = ctx.chart.data.datasets.flatMap(ds => ds.data.map(Number).filter(v => !isNaN(v)));
+                                    const maxVal = Math.max(...allVals);
+                                    const isShort = maxVal > 0 && (val / maxVal) < 0.15;
+                                    if (isShort) return '#1e293b';
+                                    return isStacked ? '#ffffff' : '#1e293b';
+                                }
                                 return '#1e293b';
                             },
                             backgroundColor: (ctx) => {
                                 if (!isStacked && (type === 'pie' || type === 'doughnut')) return 'rgba(255,255,255,0.85)';
+                                if (type === 'bar') {
+                                    const val = ctx.dataset.data[ctx.dataIndex];
+                                    const allVals = ctx.chart.data.datasets.flatMap(ds => ds.data.map(Number).filter(v => !isNaN(v)));
+                                    const maxVal = Math.max(...allVals);
+                                    const isShort = maxVal > 0 && (val / maxVal) < 0.15;
+                                    if (isShort) return 'rgba(255,255,255,0.9)';
+                                }
                                 return null;
                             },
                             borderRadius: 4,
                             anchor: (ctx) => {
                                 if (type === 'line') return 'end';
-                                if (type === 'bar' && !isStacked) return 'end';
-                                return (!isStacked && (type === 'pie' || type === 'doughnut')) ? 'end' : 'center';
+                                if (!isStacked && (type === 'pie' || type === 'doughnut')) return 'end';
+                                if (type === 'bar') {
+                                    const val = ctx.dataset.data[ctx.dataIndex];
+                                    const allVals = ctx.chart.data.datasets.flatMap(ds => ds.data.map(Number).filter(v => !isNaN(v)));
+                                    const maxVal = Math.max(...allVals);
+                                    const isShort = maxVal > 0 && (val / maxVal) < 0.15;
+                                    return isShort ? 'end' : 'center';
+                                }
+                                return 'center';
                             },
                             align: (ctx) => {
                                 if (type === 'line') return 'top';
-                                if (type === 'bar' && !isStacked) return horizontal ? 'end' : 'top';
-                                return (!isStacked && (type === 'pie' || type === 'doughnut')) ? 'start' : 'center';
+                                if (!isStacked && (type === 'pie' || type === 'doughnut')) return 'start';
+                                if (type === 'bar') {
+                                    const val = ctx.dataset.data[ctx.dataIndex];
+                                    const allVals = ctx.chart.data.datasets.flatMap(ds => ds.data.map(Number).filter(v => !isNaN(v)));
+                                    const maxVal = Math.max(...allVals);
+                                    const isShort = maxVal > 0 && (val / maxVal) < 0.15;
+                                    if (isShort) return horizontal ? 'end' : 'top';
+                                    if (!isStacked) return horizontal ? 'end' : 'top';
+                                    return 'center';
+                                }
+                                return 'center';
                             },
                             offset: (ctx) => {
-                                if (type === 'bar' && !isStacked) return 4;
-                                return (!isStacked && (type === 'pie' || type === 'doughnut')) ? -10 : 0;
+                                if (type === 'bar') {
+                                    const val = ctx.dataset.data[ctx.dataIndex];
+                                    const allVals = ctx.chart.data.datasets.flatMap(ds => ds.data.map(Number).filter(v => !isNaN(v)));
+                                    const maxVal = Math.max(...allVals);
+                                    const isShort = maxVal > 0 && (val / maxVal) < 0.15;
+                                    return isShort ? 4 : 0;
+                                }
+                                if (!isStacked && (type === 'pie' || type === 'doughnut')) return -10;
+                                return 4;
                             },
                             font: {
                                 weight: 'bold',
-                                size: type === 'line' ? 9 : 12
+                                size: type === 'line' ? 9 : 11
                             },
                             formatter: (value, ctx) => {
                                 if (isPercentage) return value.toFixed(1) + '%';
