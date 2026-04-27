@@ -1,1 +1,5 @@
-~/Anagrafica_Report_20260424.csv
+*.csv
+# Escludi file di sistema e log
+.DS_Store
+Thumbs.db
+*.log
