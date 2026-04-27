@@ -1583,15 +1583,14 @@
                                     const allVals = ctx.chart.data.datasets.flatMap(ds => ds.data.map(Number).filter(v => !isNaN(v)));
                                     const maxVal = Math.max(...allVals);
                                     const isShort = maxVal > 0 && (val / maxVal) < 0.15;
-                                    if (isShort) return 4;
-                                    if (!isStacked && ctx.chart.data.datasets.length > 1) {
-                                        // stagger labels by dataset index to avoid overlap on close values
-                                        return ctx.datasetIndex * 16;
-                                    }
-                                    return 0;
+                                    return isShort ? 4 : 6;
                                 }
                                 if (!isStacked && (type === 'pie' || type === 'doughnut')) return -10;
                                 return 4;
+                            },
+                            rotation: (ctx) => {
+                                if (type === 'bar' && !isStacked && !horizontal) return -45;
+                                return 0;
                             },
                             font: {
                                 weight: 'bold',
