@@ -1510,7 +1510,7 @@
                     indexAxis: horizontal ? 'y' : 'x',
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'nearest', intersect: true },
-                    layout: { padding: { top: padVal, right: horizontal ? 80 : padVal, bottom: padVal, left: padVal } },
+                    layout: { padding: { top: horizontal ? padVal : padVal + 20, right: horizontal ? 100 : padVal, bottom: padVal, left: padVal } },
                     plugins: {
                         legend: {
                             display: showLegend,
@@ -1527,6 +1527,7 @@
                             },
                             color: (ctx) => {
                                 if (type === 'line') return '#334155';
+                                if (type === 'bar' && !isStacked) return '#1e293b';
                                 if (!isStacked && (type === 'pie' || type === 'doughnut')) return '#1e293b';
                                 if (isStacked && ctx.datasetIndex === 0) return '#ffffff';
                                 return '#1e293b';
@@ -1538,13 +1539,18 @@
                             borderRadius: 4,
                             anchor: (ctx) => {
                                 if (type === 'line') return 'end';
+                                if (type === 'bar' && !isStacked) return 'end';
                                 return (!isStacked && (type === 'pie' || type === 'doughnut')) ? 'end' : 'center';
                             },
                             align: (ctx) => {
                                 if (type === 'line') return 'top';
+                                if (type === 'bar' && !isStacked) return horizontal ? 'end' : 'top';
                                 return (!isStacked && (type === 'pie' || type === 'doughnut')) ? 'start' : 'center';
                             },
-                            offset: (ctx) => (!isStacked && (type === 'pie' || type === 'doughnut')) ? -10 : 0,
+                            offset: (ctx) => {
+                                if (type === 'bar' && !isStacked) return 4;
+                                return (!isStacked && (type === 'pie' || type === 'doughnut')) ? -10 : 0;
+                            },
                             font: {
                                 weight: 'bold',
                                 size: type === 'line' ? 9 : 12
