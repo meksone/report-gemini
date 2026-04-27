@@ -1497,10 +1497,10 @@
 
             const padVal = (type === 'pie' || type === 'doughnut') ? 35 : 10;
             if (horizontal) {
-                const calculatedHeight = Math.max(400, labels.length * 35);
+                const calculatedHeight = Math.max(450, labels.length * 45);
                 canvasElement.parentElement.style.height = calculatedHeight + 'px';
             } else {
-                canvasElement.parentElement.style.height = type === 'line' ? '400px' : '450px';
+                canvasElement.parentElement.style.height = type === 'line' ? '400px' : '520px';
             }
 
             const config = {
@@ -1583,7 +1583,12 @@
                                     const allVals = ctx.chart.data.datasets.flatMap(ds => ds.data.map(Number).filter(v => !isNaN(v)));
                                     const maxVal = Math.max(...allVals);
                                     const isShort = maxVal > 0 && (val / maxVal) < 0.15;
-                                    return isShort ? 4 : 0;
+                                    if (isShort) return 4;
+                                    if (!isStacked && ctx.chart.data.datasets.length > 1) {
+                                        // stagger labels by dataset index to avoid overlap on close values
+                                        return ctx.datasetIndex * 16;
+                                    }
+                                    return 0;
                                 }
                                 if (!isStacked && (type === 'pie' || type === 'doughnut')) return -10;
                                 return 4;
