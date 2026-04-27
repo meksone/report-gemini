@@ -10,6 +10,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
@@ -91,6 +92,15 @@
                     </div>
 
                     <div>
+                        <input type="file" id="zipFileInput" accept=".zip" class="hidden" />
+                        <label id="lblZip" for="zipFileInput"
+                            class="cursor-pointer border-2 border-purple-400 bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
+                            <i data-lucide="archive" class="w-4 h-4"></i>
+                            Load ZIP (all-in-one)
+                        </label>
+                    </div>
+                    <div class="border-l border-slate-200 pl-3 flex items-center text-slate-300 text-xs whitespace-nowrap">or separately:</div>
+                    <div>
                         <input type="file" id="anagFileInput" accept=".csv" class="hidden" />
                         <label id="lblAnagrafica" for="anagFileInput"
                             class="cursor-pointer border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
@@ -99,11 +109,19 @@
                         </label>
                     </div>
                     <div>
+                        <input type="file" id="featuresFileInput" accept=".csv" class="hidden" />
+                        <label id="lblFeatures" for="featuresFileInput"
+                            class="cursor-pointer border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
+                            <i data-lucide="tag" class="w-4 h-4"></i>
+                            2. Load Features
+                        </label>
+                    </div>
+                    <div>
                         <input type="file" id="logFileInput" accept=".csv" class="hidden" />
                         <label id="lblLogs" for="logFileInput"
                             class="cursor-pointer bg-blue-600 border border-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
                             <i data-lucide="database" class="w-4 h-4"></i>
-                            2. Load Logs (Big Data)
+                            3. Load Logs (Big Data)
                         </label>
                     </div>
                 </div>
@@ -776,12 +794,70 @@
         document.addEventListener('DOMContentLoaded', () => { renderLegend(); });
 
         let anagraficaMap = {};
+        let featuresMap = {};
         let anomalousUsers = new Map();
         let checkedUsers = new Set();
         let totalEmployees = { total: 0, users: 0, shared: 0, external: 0 };
         let totalEmployeesByCountry = {};
         let totalEmployeesByCompany = {};
         let logCols = null;
+        const ACTION_LABEL_MAP = {
+            "detect_schedule_intent_compose":                   "Smart Scheduling",
+            "summarize_proactive_short":                        "Side panel",
+            "summarize_messages":                               "Side panel",
+            "summarize_homepage":                               "Side panel",
+            "classic_use_case_meet_take_notes_for_me_session":  "Meeting Notes",
+            "list_action_items_filtering":                      "Meeting Notes",
+            "summarize_executive_summary":                      "Meeting Notes",
+            "list_action_items_annotator":                      "Meeting Notes",
+            "bulletize":                                        "Help me write",
+            "list_action_items_refinement":                     "Meeting Notes",
+            "list_action_items":                                "Meeting Notes",
+            "suggest_time_proactive":                           "Smart Scheduling",
+            "classic_use_case_suggest_time_reporting":          "Smart Scheduling",
+            "suggest_time":                                     "Smart Scheduling",
+            "categorize_content":                               "Workspace Studio",
+            "evaluate_natural_language_condition":              "Workspace Studio",
+            "classic_use_case_workspace_studio_flow_execution": "Workspace Studio",
+            "generate_ai_overviews":                            "Search AI overview",
+            "generate_ai_function_response":                    "Enhanced smart fill",
+            "generate_text":                                    "Help me write",
+            "conversation":                                     "Side panel",
+            "summarize_space_comprehensive":                    "Side panel",
+            "summarize_space":                                  "Side panel",
+            "summarize_dm":                                     "Side panel",
+            "summarize_thread_comprehensive":                   "Side panel",
+            "summarize_thread":                                 "Side panel",
+            "generate_text_completion":                         "Help me write",
+            "classic_use_case_preset_voiceover":                "Vids",
+            "generate_document":                                "Vids",
+            "generate_recording_scripts":                       "Vids",
+            "generate_page_outline":                            "Vids",
+            "generate_videos_from_reference":                   "Vids",
+            "generate_avatar_video":                            "Vids",
+            "generate_videos_from_image":                       "Help me visualize",
+            "generate_videos_in_product":                       "Vids",
+            "generate_form":                                    "Help me write",
+            "find_and_organize_within_folder":                  "Side panel",
+            "summarize":                                        "Side panel",
+            "summarize_for_tts":                                "Side panel",
+            "summarize_conversation":                           "Side panel",
+            "extract_decisions":                                "Side panel",
+            "summarize_proactive":                              "Side panel",
+            "suggest_reply_prompts":                            "Smart Reply",
+            "summarize_snippet":                                "Side panel",
+            "generate_starter_tile_prompts":                    "Side panel",
+            "list_action_items_proactive":                      "Meeting Notes",
+            "suggest_full_replies":                             "Smart Reply",
+            "proactive_suggestions":                            "Side panel",
+            "generate_talkshow":                                "Vids",
+            "summarize_proactive_short_long":                   "Side panel",
+            "describe_gemini_uses":                             "Side panel",
+            "extract_fields":                                   "Workspace Studio",
+            "classic_use_case_teleprompter_word_match":         "Vids",
+            "summarize_unspecified_folder":                     "Side panel",
+            "generate_apps_search_overlay_suggestions":         "Search AI overview",
+        };
         let chartInstances = {};
 
         function initDataNode() {
@@ -829,6 +905,134 @@
 
         const anagInput = document.getElementById('anagFileInput');
         const logInput = document.getElementById('logFileInput');
+        const zipInput = document.getElementById('zipFileInput');
+
+        zipInput.addEventListener('change', async function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('lblZip').innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Extracting...`;
+            lucide.createIcons();
+
+            let zip;
+            try { zip = await JSZip.loadAsync(file); }
+            catch(err) { alert("ZIP read error: " + err); return; }
+
+            const entries = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv'));
+
+            const find = (keyword) => entries.find(f => f.name.toLowerCase().includes(keyword));
+            const registryEntry = find('registry') || find('anagrafica');
+            const featuresEntry = find('features') || find('feature');
+            const logsEntry     = find('logs') || find('log');
+
+            if (!registryEntry && !featuresEntry && !logsEntry) {
+                alert("No recognised CSVs in ZIP. Expected names containing: registry/anagrafica, features, logs.");
+                document.getElementById('lblZip').innerHTML = `<i data-lucide="archive" class="w-4 h-4"></i> Load ZIP (all-in-one)`;
+                lucide.createIcons();
+                return;
+            }
+
+            // helper: CSV text → File-like Blob for PapaParse
+            const parseCSV = (text, opts) => new Promise((resolve, reject) => {
+                Papa.parse(text, { ...opts, complete: resolve, error: reject });
+            });
+
+            // 1. Registry
+            if (registryEntry) {
+                const text = await registryEntry.async('string');
+                const results = await parseCSV(text, { header: true, skipEmptyLines: true, transformHeader: h => h.toLowerCase().trim() });
+                anagraficaMap = {};
+                totalEmployees = { total: 0, users: 0, shared: 0, external: 0 };
+                totalEmployeesByCountry = {};
+                totalEmployeesByCompany = {};
+                results.data.forEach(row => {
+                    const email = (row['log'] || "").trim().toLowerCase();
+                    if (!email) return;
+                    const isActive   = String(row['isactive']  || "").trim() === '1';
+                    const isExternal = String(row['isexternal'] || "").trim() === '1';
+                    const country        = (row['country']          || "Unknown").trim().toUpperCase();
+                    const company        = (row['company']          || "Unknown").trim();
+                    const businessArea   = (row['businessareas']    || "Unassigned").trim();
+                    const departmentCode = (row['workspace_orgunit']|| "N/A").trim();
+                    anagraficaMap[email] = { country, company, businessArea, departmentCode, workingPlace: "N/A", isInternal: !isExternal, isActive };
+                    if (isActive) {
+                        totalEmployees.total++;
+                        const isShared = departmentCode.toLowerCase().match(/(shared|condivis|servizi|generic)/);
+                        const t = isExternal ? 'external' : (isShared ? 'shared' : 'users');
+                        totalEmployees[t]++;
+                        if (!totalEmployeesByCountry[country]) totalEmployeesByCountry[country] = { total:0,users:0,shared:0,external:0 };
+                        totalEmployeesByCountry[country].total++; totalEmployeesByCountry[country][t]++;
+                        if (!totalEmployeesByCompany[company]) totalEmployeesByCompany[company] = { total:0,users:0,shared:0,external:0 };
+                        totalEmployeesByCompany[company].total++; totalEmployeesByCompany[company][t]++;
+                    }
+                });
+                document.getElementById('kpiTotalEmployees').innerText = totalEmployees.total.toLocaleString('en-US');
+                document.getElementById('lblAnagrafica').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Registry OK (${totalEmployees.total.toLocaleString()} Active)`;
+                document.getElementById('lblAnagrafica').classList.add('file-loaded');
+            }
+
+            // 2. Features
+            if (featuresEntry) {
+                const text = await featuresEntry.async('string');
+                const results = await parseCSV(text, { header: true, skipEmptyLines: true, transformHeader: h => h.trim() });
+                featuresMap = {};
+                results.data.forEach(row => {
+                    const fid = (row['featureID'] || "").trim();
+                    if (!fid) return;
+                    const action = (row['Action'] || "").trim();
+                    let featureSrc = (row['Feature_source'] || "").trim();
+                    if (!featureSrc || featureSrc === "No translations found") {
+                        featureSrc = ACTION_LABEL_MAP[action] || action || "Unknown";
+                    }
+                    featuresMap[fid] = { featureSrc, action, eventCat: (row['Event_category']||"").trim(), appName: (row['App_name']||"").trim() };
+                });
+                document.getElementById('lblFeatures').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Features OK (${Object.keys(featuresMap).length.toLocaleString()} entries)`;
+                document.getElementById('lblFeatures').classList.add('file-loaded');
+            }
+
+            // 3. Logs (chunked via PapaParse streaming on blob)
+            if (logsEntry) {
+                document.getElementById('emptyState').classList.add('hidden');
+                document.getElementById('dashboardData').classList.add('hidden');
+                document.getElementById('tabNavigation').classList.add('hidden');
+                document.getElementById('loadingOverlay').classList.remove('hidden');
+                document.getElementById('loadingBar').style.width = '0%';
+                document.getElementById('loadingPercent').innerText = '0%';
+                resetAggregators();
+
+                const blob = await logsEntry.async('blob');
+                const totalSize = blob.size;
+                let processed = 0;
+                await new Promise((resolve, reject) => {
+                    Papa.parse(blob, {
+                        header: true, skipEmptyLines: true, transformHeader: h => h.trim(),
+                        chunk: function(results, parser) {
+                            results.data.forEach(row => processLogRow(row));
+                            processed += results.data.length * 100; // rough byte estimate
+                            const progress = Math.min(99, Math.round((processed / (totalSize)) * 100));
+                            document.getElementById('loadingBar').style.width = `${progress}%`;
+                            document.getElementById('loadingPercent').innerText = `${progress}%`;
+                        },
+                        complete: resolve,
+                        error: reject
+                    });
+                });
+
+                document.getElementById('lblLogs').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Analysis Complete`;
+                document.getElementById('lblLogs').classList.add('file-loaded');
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    document.getElementById('dashboardData').classList.remove('hidden');
+                    document.getElementById('tabNavigation').classList.remove('hidden');
+                    updateDashboardFromAggregators();
+                    switchTab('overview');
+                }, 500);
+            }
+
+            document.getElementById('lblZip').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> ZIP Loaded`;
+            document.getElementById('lblZip').classList.add('file-loaded');
+            lucide.createIcons();
+        });
 
         anagInput.addEventListener('change', function (e) {
             const file = e.target.files[0];
@@ -900,6 +1104,38 @@
             });
         });
 
+        const featuresInput = document.getElementById('featuresFileInput');
+        featuresInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: h => h.trim(),
+                complete: function (results) {
+                    featuresMap = {};
+                    results.data.forEach(row => {
+                        const fid = (row['featureID'] || "").trim();
+                        if (!fid) return;
+                        const action     = (row['Action'] || "").trim();
+                        let   featureSrc = (row['Feature_source'] || "").trim();
+                        if (!featureSrc || featureSrc === "No translations found") {
+                            featureSrc = ACTION_LABEL_MAP[action] || action || "Unknown";
+                        }
+                        featuresMap[fid] = {
+                            featureSrc,
+                            action,
+                            eventCat: (row['Event_category'] || "").trim(),
+                            appName:  (row['App_name'] || "").trim()
+                        };
+                    });
+                    document.getElementById('lblFeatures').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Features OK (${Object.keys(featuresMap).length.toLocaleString()} entries)`;
+                    document.getElementById('lblFeatures').classList.add('file-loaded');
+                    lucide.createIcons();
+                }
+            });
+        });
+
         logInput.addEventListener('change', function (e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -948,26 +1184,29 @@
                 const keys = Object.keys(row);
                 if (keys.length === 0) return;
                 logCols = {
-                    action: keys.find(k => k.toLowerCase() === 'action' || k.toLowerCase().includes('event name')),
-                    app: keys.find(k => k.toLowerCase() === 'app_name' || k.toLowerCase().includes('app')),
-                    date: keys.find(k => k.toLowerCase() === 'date' || k.toLowerCase().includes('time')),
-                    actor: keys.find(k => k.toLowerCase() === 'actor' || k.toLowerCase().includes('user')),
-                    eventCat: keys.find(k => k.toLowerCase().replace(/_/g, ' ') === 'event category'),
-                    featureSrc: keys.find(k => k.toLowerCase().replace(/_/g, ' ') === 'feature source')
+                    eventID:   keys.find(k => k === 'eventID' || k.toLowerCase() === 'eventid'),
+                    featureID: keys.find(k => k === 'featureID' || k.toLowerCase() === 'featureid'),
+                    date:      keys.find(k => k.toLowerCase() === 'date' || k.toLowerCase().includes('time')),
+                    actor:     keys.find(k => k.toLowerCase() === 'actor' || k.toLowerCase().includes('user')),
+                    event:     keys.find(k => k === 'Event' || k.toLowerCase() === 'event'),
+                    desc:      keys.find(k => k === 'Description' || k.toLowerCase() === 'description')
                 };
             }
 
-            if (!logCols.action || !row[logCols.action]) return;
+            const featureID = logCols.featureID ? (row[logCols.featureID] || "").trim() : "";
+            const featureData = featuresMap[featureID] || null;
 
-            const actionKey = row[logCols.action].trim();
+            // derive action: from features map, fallback to Event column
+            const actionKey = (featureData ? featureData.action : "") ||
+                              (logCols.event ? (row[logCols.event] || "").trim() : "") || "";
             if (!actionKey) return;
 
-            const appName = (row[logCols.app] || "").trim() || "Unknown";
-            const dateRaw = (row[logCols.date] || "").trim();
-            const actorEmail = (row[logCols.actor] || "").trim().toLowerCase() || "n/a";
+            const appName    = (featureData ? featureData.appName : "") || "Unknown";
+            const dateRaw    = (logCols.date ? (row[logCols.date] || "") : "").trim();
+            const actorEmail = (logCols.actor ? (row[logCols.actor] || "") : "").trim().toLowerCase() || "n/a";
 
-            const rawEventCat = logCols.eventCat ? (row[logCols.eventCat] || "").trim() : "";
-            const rawFeatureSrc = logCols.featureSrc ? (row[logCols.featureSrc] || "").trim() : "";
+            const rawEventCat  = featureData ? featureData.eventCat  : "";
+            const rawFeatureSrc = featureData ? featureData.featureSrc : "";
 
             const isOrphan = !anagraficaMap.hasOwnProperty(actorEmail);
 
@@ -1588,10 +1827,7 @@
                                 if (!isStacked && (type === 'pie' || type === 'doughnut')) return -10;
                                 return 4;
                             },
-                            rotation: (ctx) => {
-                                if (type === 'bar' && !isStacked && !horizontal) return -45;
-                                return 0;
-                            },
+                            rotation: type === 'bar' && !horizontal ? -45 : 0,
                             font: {
                                 weight: 'bold',
                                 size: type === 'line' ? 9 : 11
