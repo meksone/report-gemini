@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini AI - Executive Report V6.8.17</title>
+    <title>Gemini AI - Executive Report V6.8.18</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -1644,7 +1644,7 @@
 
             drawChart('trendChart', 'line', flatTrend, ['#004B86'], false, false, false, false);
             drawChart('maturityChart', 'pie', flatMaturity, 'maturity', true, false, false, false);
-            drawChart('appChart', 'doughnut', flatApp, paletteBlue, true, false, false, false);
+            drawChart('appChart', 'doughnut', flatApp, paletteBlue, true, false, true, false);
             drawChart('countryChart', 'bar', ctryData, 'red', isAll, true, ctryMetric === 'adopt', isAll);
             drawChart('businessAreaChart', 'bar', currentArea, 'amber', isAll, true, false, isAll);
             drawChart('companyChart', 'bar', compData, 'blue', isAll, true, compMetric === 'adopt', isAll);
@@ -1796,7 +1796,6 @@
                                 size: type === 'line' ? 9 : 11
                             },
                             formatter: (value, ctx) => {
-                                if (isPercentage) return value.toFixed(1) + '%';
                                 if (type === 'line') return value.toLocaleString('en-US');
 
                                 let shortVal = formatNumberAbbr(value);
@@ -1805,11 +1804,13 @@
                                     const dataArr = ctx.chart.data.datasets[ctx.datasetIndex].data;
                                     const sum = dataArr.reduce((a, b) => a + b, 0);
                                     if (sum === 0) return shortVal;
-
-                                    const perc = (value * 100 / sum).toFixed(1).replace(/\.0$/, '') + '%';
-                                    if (value / sum < 0.05) return shortVal;
-                                    return `${shortVal} (${perc})`;
+                                    const ratio = value / sum;
+                                    const perc = (ratio * 100).toFixed(1).replace(/\.0$/, '') + '%';
+                                    if (ratio < 0.05) return shortVal;
+                                    return isPercentage ? perc : `${shortVal} (${perc})`;
                                 }
+
+                                if (isPercentage) return value.toFixed(1) + '%';
                                 return shortVal;
                             }
                         }
