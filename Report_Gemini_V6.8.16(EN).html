@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini AI - Executive Report V6.8.15</title>
+    <title>Gemini AI - Executive Report V6.8.16</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -1443,7 +1443,8 @@
                 }
             }
 
-            document.getElementById('kpiUniqueActors').innerText = totActors.toLocaleString('en-US');
+            document.getElementById('kpiUniqueActors').innerText = validActorsCount.toLocaleString('en-US');
+            document.getElementById('kpiTotalEmployees').innerText = currentTotalEmp.toLocaleString('en-US');
             document.getElementById('kpiAdoptionRate').innerText = `${adoptionRate}%`;
             document.getElementById('kpiTopApp').innerText = topApp;
             document.getElementById('kpiTopAppCount').innerText = `${topAppCount.toLocaleString('en-US')} actions`;
