@@ -5,7 +5,8 @@
       "mcp__chrome-devtools__new_page",
       "Bash(cp \"C:\\\\Users\\\\meks0\\\\sol-gemini-report\\\\add_event_id.py\" \"C:\\\\Users\\\\meks0\\\\OneDrive - meksONE\\\\Desktop\\\\report-gemini\\\\add_event_id.py\")",
       "Bash(cp \"C:\\\\Users\\\\meks0\\\\sol-gemini-report\\\\build_features.py\" \"C:\\\\Users\\\\meks0\\\\OneDrive - meksONE\\\\Desktop\\\\report-gemini\\\\build_features.py\")",
-      "Bash(cp \"C:\\\\Users\\\\meks0\\\\sol-gemini-report\\\\split_log.py\" \"C:\\\\Users\\\\meks0\\\\OneDrive - meksONE\\\\Desktop\\\\report-gemini\\\\split_log.py\")"
+      "Bash(cp \"C:\\\\Users\\\\meks0\\\\sol-gemini-report\\\\split_log.py\" \"C:\\\\Users\\\\meks0\\\\OneDrive - meksONE\\\\Desktop\\\\report-gemini\\\\split_log.py\")",
+      "Bash(grep -i \"NULL\\\\|^,\\\\|,,$\\\\|BusinessAreas\" \"C:\\\\Users\\\\meks0\\\\OneDrive - meksONE\\\\Desktop\\\\report-gemini\\\\registry.csv\")"
     ]
   }
 }

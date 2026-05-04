@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini AI - Executive Report V6.8.14</title>
+    <title>Gemini AI - Executive Report V6.8.15</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -950,10 +950,11 @@
                     if (!email) return;
                     const isActive   = String(row['isactive']  || "").trim() === '1';
                     const isExternal = String(row['isexternal'] || "").trim() === '1';
-                    const country        = (row['country']          || "Unknown").trim().toUpperCase();
-                    const company        = (row['company']          || "Unknown").trim();
-                    const businessArea   = (row['businessareas']    || "Unassigned").trim();
-                    const departmentCode = (row['workspace_orgunit']|| "N/A").trim();
+                    const nullify = (v, def) => { const s = (v || "").trim(); return (s === "" || s.toUpperCase() === "NULL") ? def : s; };
+                    const country        = nullify(row['country'],          "Unknown").toUpperCase();
+                    const company        = nullify(row['company'],          "Unknown");
+                    const businessArea   = nullify(row['businessareas'],    "Unassigned");
+                    const departmentCode = nullify(row['workspace_orgunit'],"N/A");
                     anagraficaMap[email] = { country, company, businessArea, departmentCode, workingPlace: "N/A", isInternal: !isExternal, isActive };
                     if (isActive) {
                         totalEmployees.total++;
@@ -1060,10 +1061,11 @@
                         const isExternal = (isExternalRaw === '1');
                         const isInternal = !isExternal;
 
-                        const country = (row['country'] || "Unknown").trim().toUpperCase();
-                        const company = (row['company'] || "Unknown").trim();
-                        const businessArea = (row['businessareas'] || "Unassigned").trim();
-                        const departmentCode = (row['workspace_orgunit'] || "N/A").trim();
+                        const nullify = (v, def) => { const s = (v || "").trim(); return (s === "" || s.toUpperCase() === "NULL") ? def : s; };
+                        const country = nullify(row['country'], "Unknown").toUpperCase();
+                        const company = nullify(row['company'], "Unknown");
+                        const businessArea = nullify(row['businessareas'], "Unassigned");
+                        const departmentCode = nullify(row['workspace_orgunit'], "N/A");
 
                         anagraficaMap[email] = {
                             country: country,
