@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini AI - Executive Report V6.8.16</title>
+    <title>Gemini AI - Executive Report V6.8.17</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -500,6 +500,14 @@
     </main>
 
     <script>
+        /* ── DASHBOARD CONFIG ─────────────────────────────────────────────────
+           HIDE_UNASSIGNED_BUSINESS_AREA
+             true  → hide "Unassigned" and "Unmapped in Registry" rows
+                     from the Business Area chart
+             false → show all rows (default behaviour)
+        ──────────────────────────────────────────────────────────────────── */
+        const HIDE_UNASSIGNED_BUSINESS_AREA = true;
+
         Chart.register(ChartDataLabels);
 
         function switchTab(tabId) {
@@ -1518,7 +1526,11 @@
             for (let [k, v] of Object.entries(agg.company)) currentCompany[k] = isAll ? filterNodeStacked(v) : filterNode(v);
 
             let currentArea = {};
-            for (let [k, v] of Object.entries(agg.area)) currentArea[k] = isAll ? filterNodeStacked(v) : filterNode(v);
+            const AREA_HIDDEN = ['unassigned', 'unmapped in registry'];
+            for (let [k, v] of Object.entries(agg.area)) {
+                if (HIDE_UNASSIGNED_BUSINESS_AREA && AREA_HIDDEN.includes(k.toLowerCase())) continue;
+                currentArea[k] = isAll ? filterNodeStacked(v) : filterNode(v);
+            }
 
             let currentCat = {};
             for (let [k, v] of Object.entries(agg.cat)) currentCat[k] = isAll ? filterNodeStacked(v) : filterNode(v);
