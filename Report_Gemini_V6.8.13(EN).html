@@ -1,0 +1,1823 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini AI - Executive Report V6.8.13</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+
+        .file-loaded {
+            border-color: #10b981 !important;
+            background-color: #ecfdf5 !important;
+            color: #047857 !important;
+        }
+
+        @keyframes spin-slow {
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin-slow {
+            animation: spin-slow 3s linear infinite;
+        }
+
+        .tab-active {
+            background-color: #2563eb !important;
+            color: white !important;
+            border-color: #2563eb !important;
+        }
+    </style>
+</head>
+
+<body class="text-slate-800 min-h-screen pb-12">
+
+    <div id="loadingOverlay"
+        class="hidden fixed inset-0 bg-slate-900/90 backdrop-blur-sm z-[100] flex flex-col items-center justify-center text-white transition-opacity">
+        <i data-lucide="loader-2" class="w-16 h-16 animate-spin text-blue-500 mb-6"></i>
+        <h2 class="text-2xl font-bold mb-2">Processing...</h2>
+        <p id="loadingDescription" class="text-slate-300 mb-8 max-w-md text-center text-sm">Please wait...</p>
+        <div class="w-72 bg-slate-800 rounded-full h-4 overflow-hidden border border-slate-700">
+            <div id="loadingBar" class="bg-blue-500 h-full transition-all duration-200 ease-out" style="width: 0%">
+            </div>
+        </div>
+        <p id="loadingPercent" class="mt-4 font-mono text-2xl font-bold text-blue-400">0%</p>
+    </div>
+
+    <nav class="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-col sm:flex-row justify-between h-auto sm:h-20 items-center py-4 sm:py-0 gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 p-2 rounded-lg">
+                        <i data-lucide="sparkles" class="text-white w-6 h-6"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight">Gemini AI <span
+                            class="text-blue-600 font-light">Executive Report</span></span>
+                </div>
+                <div class="flex items-center gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0">
+
+                    <div class="border-r border-slate-200 pr-3 mr-1 flex gap-2" id="filterContainer">
+                        <select id="globalFilter" onchange="updateDashboardFromAggregators()"
+                            class="bg-slate-50 border border-slate-300 text-slate-700 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2 font-bold cursor-pointer">
+                            <option value="all"> All Users</option>
+                            <option value="users"> Internal Users</option>
+                            <option value="shared"> Shared Mailboxes</option>
+                            <option value="external"> External/Consultants</option>
+                            <option value="unmapped"> Users not in Registry</option>
+                        </select>
+                        <select id="maturityGlobalFilter" onchange="updateDashboardFromAggregators()"
+                            class="bg-purple-50 border border-purple-200 text-purple-700 text-sm rounded-lg focus:ring-purple-500 focus:border-purple-500 block w-full p-2 font-bold cursor-pointer">
+                            <option value="all"> All Interactions</option>
+                            <option value="intentional"> Intentional (Prompts)</option>
+                            <option value="proactive"> Proactive (Suggestions)</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <input type="file" id="zipFileInput" accept=".zip" class="hidden" />
+                        <label id="lblZip" for="zipFileInput"
+                            class="cursor-pointer border-2 border-purple-400 bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
+                            <i data-lucide="archive" class="w-4 h-4"></i>
+                            Load ZIP (all-in-one)
+                        </label>
+                    </div>
+                    <div class="border-l border-slate-200 pl-3 flex items-center text-slate-300 text-xs whitespace-nowrap">or separately:</div>
+                    <div>
+                        <input type="file" id="anagFileInput" accept=".csv" class="hidden" />
+                        <label id="lblAnagrafica" for="anagFileInput"
+                            class="cursor-pointer border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
+                            <i data-lucide="users" class="w-4 h-4"></i>
+                            1. Load Registry
+                        </label>
+                    </div>
+                    <div>
+                        <input type="file" id="featuresFileInput" accept=".csv" class="hidden" />
+                        <label id="lblFeatures" for="featuresFileInput"
+                            class="cursor-pointer border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
+                            <i data-lucide="tag" class="w-4 h-4"></i>
+                            2. Load Features
+                        </label>
+                    </div>
+                    <div>
+                        <input type="file" id="logFileInput" accept=".csv" class="hidden" />
+                        <label id="lblLogs" for="logFileInput"
+                            class="cursor-pointer bg-blue-600 border border-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2 shadow-sm text-sm whitespace-nowrap">
+                            <i data-lucide="database" class="w-4 h-4"></i>
+                            3. Load Logs (Big Data)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div id="tabNavigation" class="bg-white border-b border-slate-200 hidden sticky top-[81px] z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex space-x-2 overflow-x-auto py-3 hide-scrollbar">
+                <button onclick="switchTab('overview')" id="btn-overview"
+                    class="tab-btn tab-active px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition border border-transparent flex items-center gap-2">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Overview
+                </button>
+                <button onclick="switchTab('country')" id="btn-country"
+                    class="tab-btn bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition flex items-center gap-2">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i> Country
+                </button>
+                <button onclick="switchTab('company')" id="btn-company"
+                    class="tab-btn bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition flex items-center gap-2">
+                    <i data-lucide="building" class="w-4 h-4"></i> Company
+                </button>
+                <button onclick="switchTab('area')" id="btn-area"
+                    class="tab-btn bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition flex items-center gap-2">
+                    <i data-lucide="briefcase" class="w-4 h-4"></i> Business Areas
+                </button>
+                <button onclick="switchTab('tech')" id="btn-tech"
+                    class="tab-btn bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition flex items-center gap-2">
+                    <i data-lucide="cpu" class="w-4 h-4"></i> Apps & Maturity
+                </button>
+                <button onclick="switchTab('interactions')" id="btn-interactions"
+                    class="tab-btn bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition flex items-center gap-2">
+                    <i data-lucide="git-merge" class="w-4 h-4"></i> Interaction Types
+                </button>
+                <button onclick="switchTab('usecases')" id="btn-usecases"
+                    class="tab-btn bg-white hover:bg-slate-50 text-slate-600 border border-slate-200 px-4 py-2 rounded-lg font-bold text-sm whitespace-nowrap transition flex items-center gap-2">
+                    <i data-lucide="book-open" class="w-4 h-4"></i> Use Cases
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8" id="dashboardContent">
+
+        <div id="emptyState" class="flex flex-col items-center justify-center py-16 text-center">
+            <div class="flex gap-4 mb-6 relative">
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-200 shadow-sm z-10"><i
+                        data-lucide="building-2" class="w-12 h-12 text-slate-400"></i></div>
+                <div class="bg-blue-50 p-6 rounded-2xl border border-blue-200 shadow-sm z-20 -ml-6"><i
+                        data-lucide="brain-circuit" class="w-12 h-12 text-blue-600"></i></div>
+            </div>
+            <h2 class="text-3xl font-extrabold text-slate-800 mb-4 tracking-tight">Strategic AI Adoption Analysis</h2>
+            <p class="text-slate-500 max-w-xl mx-auto mb-8 text-lg">Upload the company registry and system logs to
+                begin.</p>
+        </div>
+
+        <div id="dashboardData" class="hidden">
+
+            <div id="view-overview" class="tab-content space-y-8 block">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="glass-panel p-6 flex flex-col justify-center border-t-4 border-t-blue-500">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Adoption Rate</h3>
+                            <i data-lucide="pie-chart" class="w-5 h-5 text-blue-500"></i>
+                        </div>
+                        <div class="flex items-baseline gap-2">
+                            <p id="kpiAdoptionRate" class="text-4xl font-extrabold text-slate-800">0%</p>
+                        </div>
+                        <p class="text-sm text-slate-500 mt-1 font-medium"><span id="kpiUniqueActors"
+                                class="font-bold text-slate-700">0</span> active out of <span id="kpiTotalEmployees"
+                                class="font-bold text-slate-700">0</span></p>
+                    </div>
+
+                    <div class="glass-panel p-6 flex flex-col justify-center">
+                        <div class="flex items-center gap-2 text-slate-500 mb-2">
+                            <i data-lucide="activity" class="w-4 h-4"></i>
+                            <h3 class="text-xs font-bold uppercase tracking-wider">Interaction Volume</h3>
+                        </div>
+                        <p id="kpiTotal" class="text-3xl font-extrabold text-slate-800">0</p>
+                        <p id="kpiTotalSplit" class="text-xs text-slate-400 mt-1 font-medium">0 Usr | 0 Shd | 0 Ext | 0
+                            Unmapped
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-6 flex flex-col justify-center">
+                        <div class="flex items-center gap-2 text-purple-600 mb-2">
+                            <i data-lucide="layout-grid" class="w-4 h-4"></i>
+                            <h3 class="text-xs font-bold uppercase tracking-wider">Top Impacted App</h3>
+                        </div>
+                        <p id="kpiTopApp" class="text-2xl font-extrabold text-purple-700 truncate">-</p>
+                        <p id="kpiTopAppCount" class="text-sm text-purple-800/70 mt-1 font-medium">0 actions</p>
+                    </div>
+
+                    <div class="glass-panel p-6 flex flex-col justify-center">
+                        <div class="flex items-center gap-2 text-emerald-600 mb-2">
+                            <i data-lucide="target" class="w-4 h-4"></i>
+                            <h3 class="text-xs font-bold uppercase tracking-wider">Maturity</h3>
+                        </div>
+                        <p id="kpiMaturity" class="text-2xl font-extrabold text-emerald-700 truncate">0% Intent.</p>
+                        <p class="text-sm text-emerald-800/70 mt-1 font-medium">Prompt usage vs System</p>
+                    </div>
+                </div>
+
+                <div id="dataQualityBanner"
+                    class="hidden glass-panel p-4 bg-red-50 border-l-4 border-l-red-500 border-t-0 border-r-0 border-b-0 flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="p-2 bg-red-100 rounded-lg">
+                            <i data-lucide="alert-triangle" class="w-6 h-6 text-red-600"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-red-900 text-lg">Quality Check Registry</h3>
+                            <p class="text-sm text-red-700 mt-0.5">Detected <span id="anomalyCount"
+                                    class="font-bold text-red-900 text-base">0</span> active users missing from or
+                                incomplete in the registry.</p>
+                        </div>
+                    </div>
+                    <button onclick="exportAnomaliesCSV()"
+                        class="flex items-center justify-center gap-2 w-full sm:w-auto px-4 py-2.5 bg-white hover:bg-red-50 text-red-700 text-sm font-bold rounded-lg border border-red-200 transition shadow-sm whitespace-nowrap">
+                        <i data-lucide="download" class="w-4 h-4"></i> Download Anomalies
+                    </button>
+                </div>
+
+                <div class="glass-panel p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="trending-up" class="w-5 h-5 text-blue-600"></i>
+                            <h3 class="font-bold text-lg text-slate-800">Adoption Trend Over Time</h3>
+                        </div>
+                        <button onclick="exportRawDataForChart('Trend', 'trendChart')"
+                            class="flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded transition border border-slate-200">
+                            <i data-lucide="download" class="w-3 h-3"></i> Export Log
+                        </button>
+                    </div>
+                    <div class="relative w-full"><canvas id="trendChart"></canvas></div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div
+                        class="glass-panel p-6 lg:col-span-2 bg-gradient-to-br from-indigo-900 to-slate-800 text-white relative overflow-hidden flex flex-col justify-center">
+                        <div class="absolute top-0 right-0 p-4 opacity-10"><i data-lucide="rocket"
+                                class="w-64 h-64 text-white"></i></div>
+                        <div class="flex items-center gap-2 mb-8 relative z-10">
+                            <div class="p-1.5 bg-indigo-500/30 rounded-lg"><i data-lucide="bar-chart-3"
+                                    class="w-6 h-6 text-indigo-300"></i></div>
+                            <h3 class="font-bold text-xl tracking-wide">Gemini AI Adoption</h3>
+                        </div>
+                        <div class="flex flex-row justify-around items-center relative z-10 mt-4">
+                            <div class="text-center">
+                                <p class="text-5xl lg:text-6xl font-black text-white" id="generalTotalActions">0</p>
+                                <p
+                                    class="text-sm lg:text-base font-medium text-indigo-200 mt-2 uppercase tracking-widest">
+                                    Total actions</p>
+                            </div>
+                            <div class="w-px h-24 bg-slate-600 mx-4"></div>
+                            <div class="text-center">
+                                <p class="text-5xl lg:text-6xl font-black text-white" id="generalTotalUsers">0</p>
+                                <p
+                                    class="text-sm lg:text-base font-medium text-indigo-200 mt-2 uppercase tracking-widest">
+                                    Active users</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-6 flex flex-col">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i data-lucide="medal" class="w-5 h-5 text-amber-500"></i>
+                            <h3 class="font-bold text-lg text-slate-800">Top 20 Change Agents</h3>
+                        </div>
+                        <p class="text-xs text-slate-500 mb-4">Intentional usage (prompts).</p>
+                        <div id="advancedUsersList" class="space-y-2 flex-grow overflow-y-auto pr-2"
+                            style="max-height: 250px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-country" class="tab-content space-y-8 hidden">
+                <div class="glass-panel p-6 bg-white">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-xl text-slate-800">Adoption by Country</h3>
+                        <div class="flex items-center gap-2">
+                            <select id="countryMetric" onchange="updateDashboardFromAggregators()"
+                                class="bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 font-medium cursor-pointer">
+                                <option value="vol">Metric: Volume (Actions)</option>
+                                <option value="adopt">Metric: % Adoption Rate</option>
+                            </select>
+                            <button onclick="exportRawDataForChart('Country', 'countryChart')"
+                                class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded transition border border-slate-200">
+                                <i data-lucide="download" class="w-4 h-4"></i> Export Log
+                            </button>
+                        </div>
+                    </div>
+                    <div class="relative w-full"><canvas id="countryChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="view-company" class="tab-content space-y-8 hidden">
+                <div class="glass-panel p-6 bg-white">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-xl text-slate-800">Adoption by Company</h3>
+                        <div class="flex items-center gap-2">
+                            <select id="companyMetric" onchange="updateDashboardFromAggregators()"
+                                class="bg-slate-50 border border-slate-200 text-sm rounded px-2 py-1 font-medium cursor-pointer">
+                                <option value="vol">Metric: Volume (Actions)</option>
+                                <option value="adopt">Metric: % Adoption Rate</option>
+                            </select>
+                            <button onclick="exportRawDataForChart('Company', 'companyChart')"
+                                class="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded transition border border-slate-200">
+                                <i data-lucide="download" class="w-4 h-4"></i> Export Log
+                            </button>
+                        </div>
+                    </div>
+                    <div class="relative w-full"><canvas id="companyChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="view-area" class="tab-content space-y-8 hidden">
+                <div class="glass-panel p-6 bg-white">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-xl text-slate-800">Adoption by Business Area</h3>
+                        <button onclick="exportRawDataForChart('Area', 'businessAreaChart')"
+                            class="flex items-center gap-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded transition border border-slate-200">
+                            <i data-lucide="download" class="w-4 h-4"></i> Export Log
+                        </button>
+                    </div>
+                    <div class="relative w-full"><canvas id="businessAreaChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="view-tech" class="tab-content space-y-8 hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="glass-panel p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-xl text-slate-800">Adoption by App</h3>
+                            <button onclick="exportRawDataForChart('App', 'appChart')"
+                                class="flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded transition border border-slate-200">
+                                <i data-lucide="download" class="w-3 h-3"></i> Export Log
+                            </button>
+                        </div>
+                        <div class="relative w-full"><canvas id="appChart"></canvas></div>
+                    </div>
+                    <div class="glass-panel p-6">
+                        <div class="flex justify-between items-center mb-6">
+                            <h3 class="font-bold text-xl text-slate-800">Usage Maturity</h3>
+                            <button onclick="exportRawDataForChart('Maturity', 'maturityChart')"
+                                class="flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded transition border border-slate-200">
+                                <i data-lucide="download" class="w-3 h-3"></i> Export Log
+                            </button>
+                        </div>
+                        <div class="relative w-full"><canvas id="maturityChart"></canvas></div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 mt-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="mail" class="w-6 h-6 text-red-500"></i>
+                            <h3 class="font-bold text-xl text-slate-800">Gmail Drill-down</h3>
+                        </div>
+                        <button onclick="exportRawDataForChart('Gmail', 'gmailChart')"
+                            class="flex items-center gap-1 px-3 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded transition border border-slate-200">
+                            <i data-lucide="download" class="w-3 h-3"></i> Export Log
+                        </button>
+                    </div>
+                    <p class="text-sm text-slate-500 mb-6 max-w-3xl">Volume between intentional uses and proactive
+                        suggestions of the system.</p>
+                    <div class="relative w-full"><canvas id="gmailChart"></canvas></div>
+                </div>
+            </div>
+
+            <div id="view-interactions" class="tab-content space-y-8 hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="glass-panel p-6 flex flex-col">
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="message-square" class="w-5 h-5 text-indigo-500"></i>
+                                <h3 class="font-bold text-xl text-slate-800">Event Categories</h3>
+                            </div>
+                        </div>
+                        <div class="relative w-full flex-grow mb-6"><canvas id="eventCatChart"></canvas></div>
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-100 text-sm">
+                            <h4 class="font-bold text-slate-700 mb-2">Category Meaning:</h4>
+                            <ul class="space-y-2 text-slate-600">
+                                <li><span class="font-bold text-indigo-600">Active conversations:</span> Continuous
+                                    interactions
+                                    and multi-turn chats with AI.</li>
+                                <li><span class="font-bold text-indigo-600">Active generate:</span> Active creation of
+                                    new content (texts, images).</li>
+                                <li><span class="font-bold text-indigo-600">Active summarize:</span> Requests for
+                                    summarizing documents/emails.</li>
+                                <li><span class="font-bold text-indigo-600">Inactive / Unknown:</span> Unmapped
+                                    categories
+                                    or background tasks.</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-6 flex flex-col">
+                        <div class="flex justify-between items-center mb-6">
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="layers" class="w-5 h-5 text-teal-500"></i>
+                                <h3 class="font-bold text-xl text-slate-800">Feature Sources</h3>
+                            </div>
+                        </div>
+                        <div class="relative w-full flex-grow mb-6"><canvas id="featureSrcChart"></canvas></div>
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-100 text-sm overflow-y-auto"
+                            style="max-height: 180px;">
+                            <h4 class="font-bold text-slate-700 mb-2">Feature Meaning:</h4>
+                            <ul class="space-y-2 text-slate-600">
+                                <li><span class="font-bold text-teal-600">Chat with Gemini:</span> Main standalone web
+                                    app.</li>
+                                <li><span class="font-bold text-teal-600">Side panel:</span> Side panel integrated in
+                                    Docs/Gmail/Drive.</li>
+                                <li><span class="font-bold text-teal-600">Help me write/visualize:</span> In-app text
+                                    and
+                                    image generation features.</li>
+                                <li><span class="font-bold text-teal-600">Studio (light/look/sound):</span>
+                                    AI optimizations in Google Meet.</li>
+                                <li><span class="font-bold text-teal-600">Enhanced smart fill:</span> Advanced
+                                    autocomplete
+                                    in Sheets.</li>
+                                <li><span class="font-bold text-teal-600">Proofread:</span> Automatic proofreading.</li>
+                                <li><span class="font-bold text-teal-600">Search AI overview:</span> SGE (Search
+                                    Generative Experience).</li>
+                                <li><span class="font-bold text-teal-600">Remove image background:</span> Specific photo
+                                    editing features.</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="view-usecases" class="tab-content space-y-8 hidden">
+                <div class="glass-panel p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="font-bold text-xl text-slate-800">Assigned Macro Categories</h3>
+                        <button onclick="exportRawDataForChart('Category', 'categoryChart')"
+                            class="flex items-center gap-1 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-bold rounded transition border border-slate-200">
+                            <i data-lucide="download" class="w-4 h-4"></i> Export Log
+                        </button>
+                    </div>
+                    <div class="relative w-full"><canvas id="categoryChart"></canvas></div>
+                </div>
+
+                <div class="glass-panel flex flex-col overflow-hidden mb-12">
+                    <div class="p-6 border-b border-slate-200 bg-white flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <i data-lucide="book-open" class="w-5 h-5 text-indigo-600"></i>
+                            <h3 class="font-bold text-lg text-slate-800">Static Reference Legend (Log Keys)</h3>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto overflow-y-auto table-container bg-white" style="max-height: 450px;">
+                        <table class="min-w-full divide-y divide-slate-200">
+                            <thead class="bg-slate-50 sticky top-0 z-10 shadow-sm">
+                                <tr>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/4">
+                                        Original Log Action</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/6">
+                                        Maturity</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/4">
+                                        Assigned Category</th>
+                                    <th scope="col"
+                                        class="px-6 py-4 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">
+                                        Operation Description</th>
+                                </tr>
+                            </thead>
+                            <tbody id="legendTableBody" class="bg-white divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        Chart.register(ChartDataLabels);
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(el => {
+                el.classList.remove('tab-active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                el.classList.add('bg-white', 'text-slate-600', 'hover:bg-slate-50', 'border-slate-200');
+            });
+            document.getElementById('view-' + tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('btn-' + tabId);
+            if (activeBtn) {
+                activeBtn.classList.remove('bg-white', 'text-slate-600', 'hover:bg-slate-50', 'border-slate-200');
+                activeBtn.classList.add('tab-active', 'bg-blue-600', 'text-white', 'border-blue-600');
+            }
+            window.dispatchEvent(new Event('resize'));
+        }
+
+        const FEATURE_SOURCE_DICT = {
+            "gemini_app": { category: "AI Assistant", desc: "Utilizzo dell'app o pannello laterale Gemini" },
+            "help_me_write": { category: "Content Generation", desc: "Creazione e modifica di testi" },
+            "smart_reply": { category: "Automated Replies", desc: "Risposte rapide suggerite dal sistema" },
+            "smart_scheduling": { category: "Smart Scheduling", desc: "Gestione intelligente del calendario" },
+            "help_me_visualize": { category: "Image Creation", desc: "Generazione e fotoritocco di immagini" },
+            "help_me_organize": { category: "Data Organization", desc: "Organizzazione dati e fogli di calcolo" },
+            "meeting_assistance": { category: "Meeting Enhancement", desc: "Trascrizioni e ottimizzazione in Google Meet" },
+            "search_and_summarize": { category: "Search & Summarization", desc: "Ricerca, riassunti e interrogazione" },
+            "system_actions": { category: "System / Process", desc: "Azioni di sistema e automazioni di background" },
+            "video_creation": { category: "Video Creation", desc: "Generazione di presentazioni video" }
+        };
+
+        const EVENT_CATEGORY_DICT = {
+            "classic_use_case_gemini_app": { feature_source: "gemini_app" },
+            "generate_text": { feature_source: "help_me_write" },
+            "suggest_replies": { feature_source: "smart_reply" },
+            "suggest_time": { feature_source: "smart_scheduling" },
+            "generate_images_in_product": { feature_source: "help_me_visualize" },
+            "classic_use_case_sheets_turbofill": { feature_source: "help_me_organize" },
+            "classic_use_case_meet_take_notes_for_me_session": { feature_source: "meeting_assistance" },
+            "summarize_file": { feature_source: "search_and_summarize" },
+            "summarize_thread": { feature_source: "search_and_summarize" },
+            "proofread": { feature_source: "help_me_write" },
+            "search_answer": { feature_source: "search_and_summarize" },
+            "user_confirmed_tools_operation": { feature_source: "system_actions" },
+            "generate_ai_overviews": { feature_source: "search_and_summarize" },
+            "generate_apps_search_overlay_suggestions": { feature_source: "search_and_summarize" },
+            "summarize_homepage": { feature_source: "search_and_summarize" },
+            "generate_ai_function_response": { feature_source: "system_actions" },
+            "generate_nudge_prompts": { feature_source: "system_actions" },
+            "generate_table_name": { feature_source: "help_me_organize" },
+            "generate_videos": { feature_source: "video_creation" }
+        };
+
+        const ACTIONS_DICT = {
+            "add_to_calendar": { event_category: "suggest_time", maturity: "Proactive", description_it: "Crea eventi calendario dai dati estratti" },
+            "analyze_documents": { event_category: "summarize_file", maturity: "Intentional", description_it: "Analisi profonda e sintesi di documenti complessi" },
+            "ask_about_this_file": { event_category: "summarize_file", maturity: "Intentional", description_it: "Interazione diretta via chat sul contenuto del file aperto" },
+            "auto_proofread": { event_category: "proofread", maturity: "Proactive", description_it: "Correzione automatica di bozze e refusi in tempo reale" },
+            "beautify_this_slide": { event_category: "generate_images_in_product", maturity: "Intentional", description_it: "Migliora e formatta automaticamente il layout di una slide" },
+            "bulletize": { event_category: "generate_text", maturity: "Intentional", description_it: "Converte paragrafi descrittivi in elenchi puntati" },
+            "catch_me_up": { event_category: "summarize_thread", maturity: "Proactive", description_it: "Recap veloce delle attività recenti o email trascurate" },
+            "categorize_content": { event_category: "generate_text", maturity: "Proactive", description_it: "Organizza le informazioni in categorie logiche" },
+            "classic_use_case_docs_read_aloud": { event_category: "classic_use_case_gemini_app", maturity: "Intentional", description_it: "Lettura vocale dei documenti (Text-to-speech)" },
+            "classic_use_case_gemini_app": { event_category: "classic_use_case_gemini_app", maturity: "Intentional", description_it: "Utilizzo dell'app o portale standalone Gemini" },
+            "classic_use_case_meet_studio_lighting": { event_category: "classic_use_case_meet_take_notes_for_me_session", maturity: "Proactive", description_it: "Ottimizzazione automatica dell'illuminazione in Meet" },
+            "classic_use_case_meet_studio_look": { event_category: "classic_use_case_meet_take_notes_for_me_session", maturity: "Proactive", description_it: "Ritocco estetico e filtri per la qualità video" },
+            "classic_use_case_meet_studio_sound": { event_category: "classic_use_case_meet_take_notes_for_me_session", maturity: "Proactive", description_it: "Cancellazione del rumore e ottimizzazione voce" },
+            "classic_use_case_meet_take_notes_for_me_session": { event_category: "classic_use_case_meet_take_notes_for_me_session", maturity: "Intentional", description_it: "Note e trascrizioni automatiche durante i meeting" },
+            "classic_use_case_sheets_turbofill": { event_category: "classic_use_case_sheets_turbofill", maturity: "Proactive", description_it: "Riempimento intelligente delle celle (Smart Fill)" },
+            "classic_use_case_suggest_time_reporting": { event_category: "suggest_time", maturity: "Intentional", description_it: "Genera suggerimenti analitici sui report del tempo" },
+            "classic_use_case_workspace_studio_flow_execution": { event_category: "user_confirmed_tools_operation", maturity: "Intentional", description_it: "Esecuzione di workflow automatizzati multi-app" },
+            "condense": { event_category: "generate_text", maturity: "Intentional", description_it: "Rende il testo selezionato più conciso" },
+            "conversation": { event_category: "classic_use_case_gemini_app", maturity: "Intentional", description_it: "Chat interattiva nel pannello laterale di Workspace" },
+            "conversation_agentic": { event_category: "classic_use_case_gemini_app", maturity: "Intentional", description_it: "Delega compiti complessi eseguiti dall'AI in background" },
+            "conversation_image": { event_category: "classic_use_case_gemini_app", maturity: "Intentional", description_it: "Analisi o discussione di un'immagine tramite prompt" },
+            "custom_prompt": { event_category: "generate_text", maturity: "Intentional", description_it: "Richiesta libera digitata dall'utente" },
+            "detect_schedule_intent_compose": { event_category: "suggest_time", maturity: "Proactive", description_it: "Rileva intenzione di meeting e propone slot liberi" },
+            "edit_image": { event_category: "generate_images_in_product", maturity: "Intentional", description_it: "Modifica e fotoritocco di immagini tramite AI" },
+            "edit_image_gempix1": { event_category: "generate_images_in_product", maturity: "Intentional", description_it: "Editing grafico avanzato in Workspace" },
+            "elaborate": { event_category: "generate_text", maturity: "Intentional", description_it: "Espande e arricchisce concetti o bozze iniziali" },
+            "evaluate_natural_language_condition": { event_category: "classic_use_case_sheets_turbofill", maturity: "Intentional", description_it: "Converte richieste testuali in formule di calcolo" },
+            "expand": { event_category: "generate_text", maturity: "Intentional", description_it: "Allunga il testo rendendo i paragrafi più discorsivi" },
+            "extract_decisions": { event_category: "summarize_file", maturity: "Intentional", description_it: "Isola le decisioni prese all'interno di testi lunghi" },
+            "extract_fields": { event_category: "classic_use_case_sheets_turbofill", maturity: "Intentional", description_it: "Estrae dati da testi non strutturati in tabelle" },
+            "find_and_organize_within_folder": { event_category: "classic_use_case_sheets_turbofill", maturity: "Intentional", description_it: "Ricerca semantica e organizzazione file in Drive" },
+            "formalize": { event_category: "generate_text", maturity: "Intentional", description_it: "Applica un tono professionale e business al testo" },
+            "generate_ai_function_response": { event_category: "generate_ai_function_response", maturity: "Proactive", description_it: "Generazione di dati di risposta dal backend AI" },
+            "generate_ai_overviews": { event_category: "generate_ai_overviews", maturity: "Proactive", description_it: "Creazione automatica di panoramiche su un argomento" },
+            "generate_apps_search_overlay_suggestions": { event_category: "generate_apps_search_overlay_suggestions", maturity: "Proactive", description_it: "Suggerimenti predittivi nella barra di ricerca" },
+            "generate_document": { event_category: "generate_text", maturity: "Intentional", description_it: "Crea documenti da zero tramite 'Aiutami a scrivere'" },
+            "generate_form": { event_category: "generate_text", maturity: "Intentional", description_it: "Crea automaticamente moduli Google da prompt" },
+            "generate_form_questions": { event_category: "generate_text", maturity: "Intentional", description_it: "Suggerisce domande e opzioni per un modulo" },
+            "generate_images_in_product": { event_category: "generate_images_in_product", maturity: "Intentional", description_it: "Genera immagini originali partendo da un prompt" },
+            "generate_nudge_prompts": { event_category: "generate_nudge_prompts", maturity: "Proactive", description_it: "Piccoli suggerimenti contestuali all'utente" },
+            "generate_table_name": { event_category: "generate_table_name", maturity: "Proactive", description_it: "Propone titoli automatici per tabelle e colonne" },
+            "generate_text": { event_category: "generate_text", maturity: "Intentional", description_it: "Composizione generica di testi o singole frasi" },
+            "generate_videos_in_product": { event_category: "generate_videos", maturity: "Intentional", description_it: "Creazione di presentazioni video e animazioni" },
+            "informalize": { event_category: "generate_text", maturity: "Intentional", description_it: "Rende il tono del testo più colloquiale e amichevole" },
+            "list_action_items": { event_category: "summarize_file", maturity: "Intentional", description_it: "Identifica i to-do elencati in email o riunioni" },
+            "list_action_items_proactive": { event_category: "summarize_file", maturity: "Proactive", description_it: "Propone liste di compiti rilevati automaticamente" },
+            "paraphrase": { event_category: "generate_text", maturity: "Intentional", description_it: "Riformula il testo mantenendo lo stesso significato" },
+            "proactive_suggestions": { event_category: "suggest_replies", maturity: "Proactive", description_it: "Propone l'operazione successiva più probabile" },
+            "proofread": { event_category: "proofread", maturity: "Intentional", description_it: "Analisi grammaticale manuale avviata dall'utente" },
+            "remove_background": { event_category: "generate_images_in_product", maturity: "Intentional", description_it: "Rimuove lo sfondo da un'immagine isolando il soggetto" },
+            "replace_background": { event_category: "generate_images_in_product", maturity: "Intentional", description_it: "Sostituisce lo sfondo con un paesaggio generato" },
+            "search_answer": { event_category: "search_answer", maturity: "Intentional", description_it: "Risposte dirette basate su ricerca conversazionale" },
+            "search_web": { event_category: "search_answer", maturity: "Intentional", description_it: "Ricerca web aggiornata per fornire risposte precise" },
+            "suggest_full_replies": { event_category: "suggest_replies", maturity: "Proactive", description_it: "Propone bozze di risposta complete per le email" },
+            "suggest_replies": { event_category: "suggest_replies", maturity: "Proactive", description_it: "Suggerisce risposte brevi per chat e messaggi" },
+            "suggest_time": { event_category: "suggest_time", maturity: "Intentional", description_it: "Cerca slot liberi comuni tra più calendari" },
+            "suggest_time_proactive": { event_category: "suggest_time", maturity: "Proactive", description_it: "Propone automaticamente slot liberi per meeting" },
+            "summarize": { event_category: "summarize_file", maturity: "Intentional", description_it: "Riassume esplicitamente un blocco di testo selezionato" },
+            "summarize_conversation": { event_category: "summarize_thread", maturity: "Intentional", description_it: "Riassume i messaggi scambiati in una chat o spazio" },
+            "summarize_dm": { event_category: "summarize_thread", maturity: "Intentional", description_it: "Riassume i messaggi ricevuti in chat privata" },
+            "summarize_executive_summary": { event_category: "summarize_file", maturity: "Intentional", description_it: "Sintesi di alto livello per letture manageriali rapide" },
+            "summarize_file": { event_category: "summarize_file", maturity: "Intentional", description_it: "Sintesi completa del contenuto di un file o PDF" },
+            "summarize_homepage": { event_category: "summarize_homepage", maturity: "Proactive", description_it: "Recap testuale automatico nella dashboard di apertura" },
+            "summarize_long": { event_category: "summarize_file", maturity: "Intentional", description_it: "Sintesi specifica per documenti molto lunghi" },
+            "summarize_messages": { event_category: "summarize_thread", maturity: "Proactive", description_it: "Riassume i nuovi messaggi non letti al rientro in chat" },
+            "summarize_proactive": { event_category: "summarize_thread", maturity: "Proactive", description_it: "Sintesi automatica di thread email lunghi" },
+            "summarize_proactive_short": { event_category: "summarize_thread", maturity: "Proactive", description_it: "Recap sintetico generato autonomamente dal sistema" },
+            "summarize_snippet": { event_category: "summarize_file", maturity: "Proactive", description_it: "Sintesi per le anteprime di sistema (massimo 2 righe)" },
+            "summarize_space": { event_category: "summarize_thread", maturity: "Intentional", description_it: "Recap di tutte le attività avvenute in uno Space" },
+            "summarize_thread": { event_category: "summarize_thread", maturity: "Intentional", description_it: "Sintesi del set di email appartenenti a un thread" },
+            "user_confirmed_tools_operation": { event_category: "user_confirmed_tools_operation", maturity: "Intentional", description_it: "Tracciamento del consenso all'esecuzione di tool AI" }
+        };
+
+        function formatNumberAbbr(value) {
+            if (value >= 1000000) return (value / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+            if (value >= 1000) return (value / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+            return value.toString();
+        }
+
+        function exportRawDataForChart(chartType, chartId) {
+            const logFile = document.getElementById('logFileInput').files[0];
+            if (!logFile) return;
+
+            let activeLabels = null;
+            if (chartId && chartInstances[chartId]) {
+                const chart = chartInstances[chartId];
+                activeLabels = new Set();
+                chart.data.labels.forEach((label, index) => {
+                    let isDataVisible = true;
+                    if (chart.config.type === 'pie' || chart.config.type === 'doughnut') {
+                        isDataVisible = chart.getDataVisibility(index);
+                    } else {
+                        if (chart.data.datasets.length > 1) {
+                            isDataVisible = chart.isDatasetVisible(0) || chart.isDatasetVisible(1) || chart.isDatasetVisible(2) || chart.isDatasetVisible(3);
+                        } else {
+                            isDataVisible = chart.isDatasetVisible(0);
+                        }
+                    }
+                    let cleanLabel = label.replace(/ \((Users|Shared|External|Unmapped)\)$/, '');
+                    if (isDataVisible) activeLabels.add(cleanLabel);
+                });
+            }
+
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('loadingDescription').innerText = "Creating CSV...";
+            document.getElementById('loadingPercent').innerText = "0%";
+            document.getElementById('loadingBar').style.width = "0%";
+
+            let csvChunks = [];
+            let headers = ['Log Date', 'User Email'];
+
+            if (chartType === 'Country' || chartType === 'Area' || chartType === 'Company') {
+                headers.push('Country (Registry)', 'Company (Registry)', 'Business Area (Registry)', 'Department Code', 'Source App', 'Original Log Action', 'User Type');
+            } else if (chartType === 'App' || chartType === 'Category' || chartType === 'Maturity' || chartType === 'Gmail') {
+                headers.push('Source App', 'AI Category', 'AI Maturity', 'Original Log Action', 'Business Area (Registry)', 'Department Code', 'User Type');
+            } else {
+                headers.push('Source App', 'AI Maturity', 'Original Log Action', 'Business Area (Registry)', 'Department Code', 'User Type');
+            }
+
+            csvChunks.push(headers.join(",") + "\n");
+
+            Papa.parse(logFile, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: h => h.trim(),
+                chunk: function (results) {
+                    let chunkStr = "";
+                    results.data.forEach(row => {
+                        const email = (row['E-mail'] || row['email'] || "").toLowerCase().trim();
+                        if (!email) return;
+
+                        const isActiveRaw = String(row['is active'] || "").trim().toLowerCase();
+                        const isActive = (isActiveRaw === 'true' || isActiveRaw === '1' || isActiveRaw === 'yes');
+                        if (!isActive) return;
+
+                        const isExternalRaw = String(row['external'] || "").trim().toLowerCase();
+                        const isExternal = (isExternalRaw === 'true' || isExternalRaw === '1' || isExternalRaw === 'yes');
+                        const isInternal = !isExternal;
+
+                        const company = (row['Company'] || row['company'] || "Unknown").trim();
+                        const departmentCode = (row['Department code'] || row['department code'] || "N/A").trim();
+                        const businessArea = (row['Business area'] || row['business area'] || "Unassigned").trim();
+
+                        const workingPlace = row['Working place'] || row['working place'] || "";
+                        let country = "Unknown";
+                        if (workingPlace) {
+                            const wpParts = workingPlace.split('-');
+                            if (wpParts.length > 0) {
+                                country = wpParts[wpParts.length - 1].trim();
+                            }
+                        }
+
+                        let userType = 'Unmapped';
+                        if (isExternal) userType = 'External';
+                        else if (departmentCode.toLowerCase().match(/(shared|condivis|servizi|generic)/)) userType = 'Shared';
+                        else userType = 'User';
+
+                        anagraficaMap[email] = {
+                            country: country || "Unknown",
+                            company: company || "Unknown",
+                            businessArea: businessArea || "Unassigned",
+                            departmentCode: departmentCode || "N/A",
+                            workingPlace: workingPlace || "N/A",
+                            isInternal: isInternal,
+                            isActive: isActive,
+                            userType: userType
+                        };
+                    });
+                    csvChunks.push(chunkStr);
+
+                    if (logFile.size > 0) {
+                        const progress = Math.min(100, Math.round((results.meta.cursor / logFile.size) * 100));
+                        document.getElementById('loadingBar').style.width = `${progress}%`;
+                        document.getElementById('loadingPercent').innerText = `${progress}%`;
+                    }
+                },
+                complete: function () {
+                    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF])].concat(csvChunks), { type: "text/csv;charset=utf-8;" });
+                    const link = document.createElement("a");
+                    const url = URL.createObjectURL(blob);
+
+                    link.setAttribute("href", url);
+                    link.setAttribute("download", `Export_${chartType}.csv`);
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                }
+            });
+        }
+
+        function exportAnomaliesCSV() {
+            if (anomalousUsers.size === 0) {
+                alert("No anomalies detected!");
+                return;
+            }
+            let csvContent = "User Email,Anomaly Type,Working place,Company,Business area,Department code,Last Log Activity\n";
+            anomalousUsers.forEach(user => {
+                csvContent += `"${user.email}","${user.issues}","${user.workingPlace.replace(/"/g, '""')}","${user.company.replace(/"/g, '""')}","${user.businessArea.replace(/"/g, '""')}","${user.departmentCode.replace(/"/g, '""')}","${user.lastActive}"\n`;
+            });
+            const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF])].concat(csvContent), { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            link.setAttribute("href", URL.createObjectURL(blob));
+            link.setAttribute("download", "Registry_Anomalies_Report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function renderLegend() {
+            const tbody = document.getElementById('legendTableBody');
+            tbody.innerHTML = '';
+            const sortedKeys = Object.keys(ACTIONS_DICT).sort();
+            sortedKeys.forEach(key => {
+                const actionData = ACTIONS_DICT[key];
+                const eventCat = EVENT_CATEGORY_DICT[actionData.event_category] || { feature_source: "unknown" };
+                const featureSrc = FEATURE_SOURCE_DICT[eventCat.feature_source] || { category: "Other / Unknown" };
+
+                const isIntentional = actionData.maturity === "Intentional";
+                const statusStyle = isIntentional ? 'bg-green-100 text-green-700 font-bold' : 'bg-slate-100 text-slate-500';
+                const statusIcon = isIntentional ? '<i data-lucide="zap" class="w-3 h-3 inline"></i> Intentional' : '<i data-lucide="zap-off" class="w-3 h-3 inline"></i> Proactive';
+
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 transition";
+                tr.innerHTML = `
+                    <td class="px-6 py-3 whitespace-nowrap"><code class="bg-slate-100 px-1.5 py-1 rounded text-xs border border-slate-200 text-slate-600 shadow-sm">${key}</code></td>
+                    <td class="px-6 py-3 whitespace-nowrap"><span class="px-2.5 py-1 inline-flex text-xs rounded-full gap-1 items-center ${statusStyle}">${statusIcon}</span></td>
+                    <td class="px-6 py-3 whitespace-nowrap text-sm font-bold text-slate-700">${featureSrc.category}</td>
+                    <td class="px-6 py-3 text-sm text-slate-500 font-medium">${actionData.description_it}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { renderLegend(); });
+
+        let anagraficaMap = {};
+        let featuresMap = {};
+        let anomalousUsers = new Map();
+        let checkedUsers = new Set();
+        let totalEmployees = { total: 0, users: 0, shared: 0, external: 0 };
+        let totalEmployeesByCountry = {};
+        let totalEmployeesByCompany = {};
+        let logCols = null;
+        const ACTION_LABEL_MAP = {
+            "detect_schedule_intent_compose":                   "Smart Scheduling",
+            "summarize_proactive_short":                        "Side panel",
+            "summarize_messages":                               "Side panel",
+            "summarize_homepage":                               "Side panel",
+            "classic_use_case_meet_take_notes_for_me_session":  "Meeting Notes",
+            "list_action_items_filtering":                      "Meeting Notes",
+            "summarize_executive_summary":                      "Meeting Notes",
+            "list_action_items_annotator":                      "Meeting Notes",
+            "bulletize":                                        "Help me write",
+            "list_action_items_refinement":                     "Meeting Notes",
+            "list_action_items":                                "Meeting Notes",
+            "suggest_time_proactive":                           "Smart Scheduling",
+            "classic_use_case_suggest_time_reporting":          "Smart Scheduling",
+            "suggest_time":                                     "Smart Scheduling",
+            "categorize_content":                               "Workspace Studio",
+            "evaluate_natural_language_condition":              "Workspace Studio",
+            "classic_use_case_workspace_studio_flow_execution": "Workspace Studio",
+            "generate_ai_overviews":                            "Search AI overview",
+            "generate_ai_function_response":                    "Enhanced smart fill",
+            "generate_text":                                    "Help me write",
+            "conversation":                                     "Side panel",
+            "summarize_space_comprehensive":                    "Side panel",
+            "summarize_space":                                  "Side panel",
+            "summarize_dm":                                     "Side panel",
+            "summarize_thread_comprehensive":                   "Side panel",
+            "summarize_thread":                                 "Side panel",
+            "generate_text_completion":                         "Help me write",
+            "classic_use_case_preset_voiceover":                "Vids",
+            "generate_document":                                "Vids",
+            "generate_recording_scripts":                       "Vids",
+            "generate_page_outline":                            "Vids",
+            "generate_videos_from_reference":                   "Vids",
+            "generate_avatar_video":                            "Vids",
+            "generate_videos_from_image":                       "Help me visualize",
+            "generate_videos_in_product":                       "Vids",
+            "generate_form":                                    "Help me write",
+            "find_and_organize_within_folder":                  "Side panel",
+            "summarize":                                        "Side panel",
+            "summarize_for_tts":                                "Side panel",
+            "summarize_conversation":                           "Side panel",
+            "extract_decisions":                                "Side panel",
+            "summarize_proactive":                              "Side panel",
+            "suggest_reply_prompts":                            "Smart Reply",
+            "summarize_snippet":                                "Side panel",
+            "generate_starter_tile_prompts":                    "Side panel",
+            "list_action_items_proactive":                      "Meeting Notes",
+            "suggest_full_replies":                             "Smart Reply",
+            "proactive_suggestions":                            "Side panel",
+            "generate_talkshow":                                "Vids",
+            "summarize_proactive_short_long":                   "Side panel",
+            "describe_gemini_uses":                             "Side panel",
+            "extract_fields":                                   "Workspace Studio",
+            "classic_use_case_teleprompter_word_match":         "Vids",
+            "summarize_unspecified_folder":                     "Side panel",
+            "generate_apps_search_overlay_suggestions":         "Search AI overview",
+        };
+        let chartInstances = {};
+
+        function initDataNode() {
+            return {
+                intentional: { users: 0, shared: 0, external: 0, unmapped: 0 },
+                proactive: { users: 0, shared: 0, external: 0, unmapped: 0 }
+            };
+        }
+
+        function initUserSetNode() {
+            return {
+                intentional: { users: new Set(), shared: new Set(), external: new Set(), unmapped: new Set() },
+                proactive: { users: new Set(), shared: new Set(), external: new Set(), unmapped: new Set() }
+            };
+        }
+
+        let agg = {
+            total: initDataNode(),
+            uniqueActorsIntentional: { users: new Set(), shared: new Set(), external: new Set(), unmapped: new Set() },
+            uniqueActorsProactive: { users: new Set(), shared: new Set(), external: new Set(), unmapped: new Set() },
+            app: {}, cat: {}, country: {}, company: {}, area: {},
+            eventCategory: {},
+            featureSource: {},
+            maturity: { "Intentional Use (Prompt)": initDataNode(), "System Suggestion (Proactive)": initDataNode() },
+            trend: {}, userStats: {}, gmailActions: {},
+            countryUsers: {}, companyUsers: {}
+        };
+
+        function resetAggregators() {
+            logCols = null;
+            anomalousUsers.clear();
+            checkedUsers.clear();
+            agg = {
+                total: initDataNode(),
+                uniqueActorsIntentional: { users: new Set(), shared: new Set(), external: new Set(), unmapped: new Set() },
+                uniqueActorsProactive: { users: new Set(), shared: new Set(), external: new Set(), unmapped: new Set() },
+                app: {}, cat: {}, country: {}, company: {}, area: {},
+                eventCategory: {},
+                featureSource: {},
+                maturity: { "Intentional Use (Prompt)": initDataNode(), "System Suggestion (Proactive)": initDataNode() },
+                trend: {}, userStats: {}, gmailActions: {},
+                countryUsers: {}, companyUsers: {}
+            };
+        }
+
+        const anagInput = document.getElementById('anagFileInput');
+        const logInput = document.getElementById('logFileInput');
+        const zipInput = document.getElementById('zipFileInput');
+
+        zipInput.addEventListener('change', async function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('lblZip').innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> Extracting...`;
+            lucide.createIcons();
+
+            let zip;
+            try { zip = await JSZip.loadAsync(file); }
+            catch(err) { alert("ZIP read error: " + err); return; }
+
+            const entries = Object.values(zip.files).filter(f => !f.dir && f.name.toLowerCase().endsWith('.csv'));
+
+            const find = (keyword) => entries.find(f => f.name.toLowerCase().includes(keyword));
+            const registryEntry = find('registry') || find('anagrafica');
+            const featuresEntry = find('features') || find('feature');
+            const logsEntry     = find('logs') || find('log');
+
+            if (!registryEntry && !featuresEntry && !logsEntry) {
+                alert("No recognised CSVs in ZIP. Expected names containing: registry/anagrafica, features, logs.");
+                document.getElementById('lblZip').innerHTML = `<i data-lucide="archive" class="w-4 h-4"></i> Load ZIP (all-in-one)`;
+                lucide.createIcons();
+                return;
+            }
+
+            // helper: CSV text → File-like Blob for PapaParse
+            const parseCSV = (text, opts) => new Promise((resolve, reject) => {
+                Papa.parse(text, { ...opts, complete: resolve, error: reject });
+            });
+
+            // 1. Registry
+            if (registryEntry) {
+                const text = await registryEntry.async('string');
+                const results = await parseCSV(text, { header: true, skipEmptyLines: true, transformHeader: h => h.toLowerCase().trim() });
+                anagraficaMap = {};
+                totalEmployees = { total: 0, users: 0, shared: 0, external: 0 };
+                totalEmployeesByCountry = {};
+                totalEmployeesByCompany = {};
+                results.data.forEach(row => {
+                    const email = (row['log'] || "").trim().toLowerCase();
+                    if (!email) return;
+                    const isActive   = String(row['isactive']  || "").trim() === '1';
+                    const isExternal = String(row['isexternal'] || "").trim() === '1';
+                    const country        = (row['country']          || "Unknown").trim().toUpperCase();
+                    const company        = (row['company']          || "Unknown").trim();
+                    const businessArea   = (row['businessareas']    || "Unassigned").trim();
+                    const departmentCode = (row['workspace_orgunit']|| "N/A").trim();
+                    anagraficaMap[email] = { country, company, businessArea, departmentCode, workingPlace: "N/A", isInternal: !isExternal, isActive };
+                    if (isActive) {
+                        totalEmployees.total++;
+                        const isShared = departmentCode.toLowerCase().match(/(shared|condivis|servizi|generic)/);
+                        const t = isExternal ? 'external' : (isShared ? 'shared' : 'users');
+                        totalEmployees[t]++;
+                        if (!totalEmployeesByCountry[country]) totalEmployeesByCountry[country] = { total:0,users:0,shared:0,external:0 };
+                        totalEmployeesByCountry[country].total++; totalEmployeesByCountry[country][t]++;
+                        if (!totalEmployeesByCompany[company]) totalEmployeesByCompany[company] = { total:0,users:0,shared:0,external:0 };
+                        totalEmployeesByCompany[company].total++; totalEmployeesByCompany[company][t]++;
+                    }
+                });
+                document.getElementById('kpiTotalEmployees').innerText = totalEmployees.total.toLocaleString('en-US');
+                document.getElementById('lblAnagrafica').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Registry OK (${totalEmployees.total.toLocaleString()} Active)`;
+                document.getElementById('lblAnagrafica').classList.add('file-loaded');
+            }
+
+            // 2. Features
+            if (featuresEntry) {
+                const text = await featuresEntry.async('string');
+                const results = await parseCSV(text, { header: true, skipEmptyLines: true, transformHeader: h => h.trim() });
+                featuresMap = {};
+                results.data.forEach(row => {
+                    const fid = (row['featureID'] || "").trim();
+                    if (!fid) return;
+                    const action = (row['Action'] || "").trim();
+                    let featureSrc = (row['Feature_source'] || "").trim();
+                    if (!featureSrc || featureSrc === "No translations found") {
+                        featureSrc = ACTION_LABEL_MAP[action] || action || "Unknown";
+                    }
+                    featuresMap[fid] = { featureSrc, action, eventCat: (row['Event_category']||"").trim(), appName: (row['App_name']||"").trim() };
+                });
+                document.getElementById('lblFeatures').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Features OK (${Object.keys(featuresMap).length.toLocaleString()} entries)`;
+                document.getElementById('lblFeatures').classList.add('file-loaded');
+            }
+
+            // 3. Logs (chunked via PapaParse streaming on blob)
+            if (logsEntry) {
+                document.getElementById('emptyState').classList.add('hidden');
+                document.getElementById('dashboardData').classList.add('hidden');
+                document.getElementById('tabNavigation').classList.add('hidden');
+                document.getElementById('loadingOverlay').classList.remove('hidden');
+                document.getElementById('loadingBar').style.width = '0%';
+                document.getElementById('loadingPercent').innerText = '0%';
+                resetAggregators();
+
+                const blob = await logsEntry.async('blob');
+                const totalSize = blob.size;
+                let processed = 0;
+                await new Promise((resolve, reject) => {
+                    Papa.parse(blob, {
+                        header: true, skipEmptyLines: true, transformHeader: h => h.trim(),
+                        chunk: function(results, parser) {
+                            results.data.forEach(row => processLogRow(row));
+                            processed += results.data.length * 100; // rough byte estimate
+                            const progress = Math.min(99, Math.round((processed / (totalSize)) * 100));
+                            document.getElementById('loadingBar').style.width = `${progress}%`;
+                            document.getElementById('loadingPercent').innerText = `${progress}%`;
+                        },
+                        complete: resolve,
+                        error: reject
+                    });
+                });
+
+                document.getElementById('lblLogs').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Analysis Complete`;
+                document.getElementById('lblLogs').classList.add('file-loaded');
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                    document.getElementById('dashboardData').classList.remove('hidden');
+                    document.getElementById('tabNavigation').classList.remove('hidden');
+                    updateDashboardFromAggregators();
+                    switchTab('overview');
+                }, 500);
+            }
+
+            document.getElementById('lblZip').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> ZIP Loaded`;
+            document.getElementById('lblZip').classList.add('file-loaded');
+            lucide.createIcons();
+        });
+
+        anagInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: h => h.toLowerCase().trim(),
+                complete: function (results) {
+                    anagraficaMap = {};
+                    totalEmployees = { total: 0, users: 0, shared: 0, external: 0 };
+                    totalEmployeesByCountry = {};
+                    totalEmployeesByCompany = {};
+
+                    if (results.data.length === 0) return;
+
+                    results.data.forEach(row => {
+                        const email = (row['log'] || "").trim().toLowerCase();
+                        if (!email) return;
+
+                        const isActiveRaw = String(row['isactive'] || "").trim();
+                        const isActive = (isActiveRaw === '1');
+
+                        const isExternalRaw = String(row['isexternal'] || "").trim();
+                        const isExternal = (isExternalRaw === '1');
+                        const isInternal = !isExternal;
+
+                        const country = (row['country'] || "Unknown").trim().toUpperCase();
+                        const company = (row['company'] || "Unknown").trim();
+                        const businessArea = (row['businessareas'] || "Unassigned").trim();
+                        const departmentCode = (row['workspace_orgunit'] || "N/A").trim();
+
+                        anagraficaMap[email] = {
+                            country: country,
+                            company: company,
+                            businessArea: businessArea,
+                            departmentCode: departmentCode,
+                            workingPlace: "N/A",
+                            isInternal: isInternal,
+                            isActive: isActive
+                        };
+
+                        if (isActive) {
+                            totalEmployees.total++;
+
+                            const isShared = departmentCode.toLowerCase().match(/(shared|condivis|servizi|generic)/);
+
+                            let currentType = 'users';
+                            if (isExternal) currentType = 'external';
+                            else if (isShared) currentType = 'shared';
+
+                            totalEmployees[currentType]++;
+
+                            if (!totalEmployeesByCountry[country]) totalEmployeesByCountry[country] = { total: 0, users: 0, shared: 0, external: 0 };
+                            totalEmployeesByCountry[country].total++;
+                            totalEmployeesByCountry[country][currentType]++;
+
+                            if (!totalEmployeesByCompany[company]) totalEmployeesByCompany[company] = { total: 0, users: 0, shared: 0, external: 0 };
+                            totalEmployeesByCompany[company].total++;
+                            totalEmployeesByCompany[company][currentType]++;
+                        }
+                    });
+
+                    document.getElementById('kpiTotalEmployees').innerText = totalEmployees.total.toLocaleString('en-US');
+                    document.getElementById('lblAnagrafica').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Registry OK (${totalEmployees.total.toLocaleString()} Active)`;
+                    document.getElementById('lblAnagrafica').classList.add('file-loaded');
+                    lucide.createIcons();
+                }
+            });
+        });
+
+        const featuresInput = document.getElementById('featuresFileInput');
+        featuresInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                transformHeader: h => h.trim(),
+                complete: function (results) {
+                    featuresMap = {};
+                    results.data.forEach(row => {
+                        const fid = (row['featureID'] || "").trim();
+                        if (!fid) return;
+                        const action     = (row['Action'] || "").trim();
+                        let   featureSrc = (row['Feature_source'] || "").trim();
+                        if (!featureSrc || featureSrc === "No translations found") {
+                            featureSrc = ACTION_LABEL_MAP[action] || action || "Unknown";
+                        }
+                        featuresMap[fid] = {
+                            featureSrc,
+                            action,
+                            eventCat: (row['Event_category'] || "").trim(),
+                            appName:  (row['App_name'] || "").trim()
+                        };
+                    });
+                    document.getElementById('lblFeatures').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Features OK (${Object.keys(featuresMap).length.toLocaleString()} entries)`;
+                    document.getElementById('lblFeatures').classList.add('file-loaded');
+                    lucide.createIcons();
+                }
+            });
+        });
+
+        logInput.addEventListener('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            document.getElementById('emptyState').classList.add('hidden');
+            document.getElementById('dashboardData').classList.add('hidden');
+            document.getElementById('tabNavigation').classList.add('hidden');
+            document.getElementById('loadingOverlay').classList.remove('hidden');
+            document.getElementById('loadingBar').style.width = '0%';
+            document.getElementById('loadingPercent').innerText = '0%';
+
+            resetAggregators();
+
+            Papa.parse(file, {
+                header: true, skipEmptyLines: true, transformHeader: h => h.trim(),
+                chunk: function (results) {
+                    results.data.forEach(row => processLogRow(row));
+                    if (file.size > 0) {
+                        const progress = Math.min(100, Math.round((results.meta.cursor / file.size) * 100));
+                        document.getElementById('loadingBar').style.width = `${progress}%`;
+                        document.getElementById('loadingPercent').innerText = `${progress}%`;
+                    }
+                },
+                complete: function () {
+                    document.getElementById('lblLogs').innerHTML = `<i data-lucide="check-circle" class="w-4 h-4"></i> Analysis Complete`;
+                    document.getElementById('lblLogs').classList.add('file-loaded');
+                    lucide.createIcons();
+
+                    setTimeout(() => {
+                        document.getElementById('loadingOverlay').classList.add('hidden');
+                        document.getElementById('dashboardData').classList.remove('hidden');
+                        document.getElementById('tabNavigation').classList.remove('hidden');
+                        updateDashboardFromAggregators();
+                        switchTab('overview');
+                    }, 500);
+                },
+                error: function (err) {
+                    alert("Critical error: " + err);
+                    document.getElementById('loadingOverlay').classList.add('hidden');
+                }
+            });
+        });
+
+        function processLogRow(row) {
+            if (!logCols) {
+                const keys = Object.keys(row);
+                if (keys.length === 0) return;
+                logCols = {
+                    eventID:   keys.find(k => k === 'eventID' || k.toLowerCase() === 'eventid'),
+                    featureID: keys.find(k => k === 'featureID' || k.toLowerCase() === 'featureid'),
+                    date:      keys.find(k => k.toLowerCase() === 'date' || k.toLowerCase().includes('time')),
+                    actor:     keys.find(k => k.toLowerCase() === 'actor' || k.toLowerCase().includes('user')),
+                    event:     keys.find(k => k === 'Event' || k.toLowerCase() === 'event'),
+                    desc:      keys.find(k => k === 'Description' || k.toLowerCase() === 'description')
+                };
+            }
+
+            const featureID = logCols.featureID ? (row[logCols.featureID] || "").trim() : "";
+            const featureData = featuresMap[featureID] || null;
+
+            // derive action: from features map, fallback to Event column
+            const actionKey = (featureData ? featureData.action : "") ||
+                              (logCols.event ? (row[logCols.event] || "").trim() : "") || "";
+            if (!actionKey) return;
+
+            const appName    = (featureData ? featureData.appName : "") || "Unknown";
+            const dateRaw    = (logCols.date ? (row[logCols.date] || "") : "").trim();
+            const actorEmail = (logCols.actor ? (row[logCols.actor] || "") : "").trim().toLowerCase() || "n/a";
+
+            const rawEventCat  = featureData ? featureData.eventCat  : "";
+            const rawFeatureSrc = featureData ? featureData.featureSrc : "";
+
+            const isOrphan = !anagraficaMap.hasOwnProperty(actorEmail);
+
+            if (actorEmail !== "n/a" && !checkedUsers.has(actorEmail)) {
+                checkedUsers.add(actorEmail);
+                let missingFields = [];
+                let origWorkingPlace = "N/A", origCompany = "N/A", origDeptCode = "N/A", origBusinessArea = "N/A";
+
+                if (isOrphan) {
+                    missingFields.push("User not found in Registry");
+                } else {
+                    const mappedData = anagraficaMap[actorEmail];
+                    origWorkingPlace = mappedData.workingPlace || "N/A";
+                    origCompany = mappedData.company || "N/A";
+                    origDeptCode = mappedData.departmentCode || "N/A";
+                    origBusinessArea = mappedData.businessArea || "N/A";
+                }
+
+                if (missingFields.length > 0) {
+                    anomalousUsers.set(actorEmail, {
+                        email: actorEmail, issues: missingFields.join(" | "),
+                        workingPlace: origWorkingPlace, company: origCompany, businessArea: origBusinessArea, departmentCode: origDeptCode,
+                        lastActive: dateRaw
+                    });
+                }
+            }
+
+            const anagData = anagraficaMap[actorEmail] || { country: "Unknown", company: "Unmapped in Registry", businessArea: "Unassigned", isActive: false };
+
+            let userType = 'unmapped';
+            if (!isOrphan) {
+                if (!anagData.isInternal) {
+                    userType = 'external';
+                } else {
+                    const isShared = (anagData.departmentCode || "").toLowerCase().match(/(shared|condivis|servizi|generic)/);
+                    if (isShared) userType = 'shared';
+                    else userType = 'users';
+                }
+            }
+
+            const actionData = ACTIONS_DICT[actionKey] || { event_category: "unknown", maturity: "Intentional", description_it: "Azione non mappata" };
+            const eventCatDef = EVENT_CATEGORY_DICT[actionData.event_category] || { feature_source: "unknown" };
+            const featureSrcDef = FEATURE_SOURCE_DICT[eventCatDef.feature_source] || { category: "Other / Unknown" };
+
+            const finalEventCat = rawEventCat !== "" ? rawEventCat : (actionData.event_category !== "unknown" ? actionData.event_category : "Unknown");
+            const finalFeatureSrc = rawFeatureSrc !== "" ? rawFeatureSrc : (eventCatDef.feature_source !== "unknown" ? eventCatDef.feature_source : "Unknown");
+
+            const dictInfo = {
+                cat: featureSrcDef.category,
+                intent: actionData.maturity,
+                desc: actionData.description_it
+            };
+
+            let intentType = dictInfo.intent;
+            const isIntentional = (intentType === "Intentional");
+            const matKey = isIntentional ? 'intentional' : 'proactive';
+
+            agg.total[matKey][userType]++;
+            if (actorEmail !== "n/a") {
+                if (isIntentional) agg.uniqueActorsIntentional[userType].add(actorEmail);
+                else agg.uniqueActorsProactive[userType].add(actorEmail);
+            }
+
+            if (appName !== "Unknown") {
+                if (!agg.app[appName]) agg.app[appName] = initDataNode();
+                agg.app[appName][matKey][userType]++;
+            }
+            if (!agg.cat[dictInfo.cat]) agg.cat[dictInfo.cat] = initDataNode();
+            agg.cat[dictInfo.cat][matKey][userType]++;
+
+            if (finalEventCat) {
+                if (!agg.eventCategory[finalEventCat]) agg.eventCategory[finalEventCat] = initDataNode();
+                agg.eventCategory[finalEventCat][matKey][userType]++;
+            }
+            if (finalFeatureSrc) {
+                if (!agg.featureSource[finalFeatureSrc]) agg.featureSource[finalFeatureSrc] = initDataNode();
+                agg.featureSource[finalFeatureSrc][matKey][userType]++;
+            }
+
+            if (anagData.country) {
+                if (!agg.country[anagData.country]) agg.country[anagData.country] = initDataNode();
+                agg.country[anagData.country][matKey][userType]++;
+                if (!agg.countryUsers[anagData.country]) agg.countryUsers[anagData.country] = initUserSetNode();
+                if (actorEmail !== "n/a") agg.countryUsers[anagData.country][matKey][userType].add(actorEmail);
+            }
+            if (anagData.company) {
+                if (!agg.company[anagData.company]) agg.company[anagData.company] = initDataNode();
+                agg.company[anagData.company][matKey][userType]++;
+                if (!agg.companyUsers[anagData.company]) agg.companyUsers[anagData.company] = initUserSetNode();
+                if (actorEmail !== "n/a") agg.companyUsers[anagData.company][matKey][userType].add(actorEmail);
+            }
+            if (anagData.businessArea) {
+                if (!agg.area[anagData.businessArea]) agg.area[anagData.businessArea] = initDataNode();
+                agg.area[anagData.businessArea][matKey][userType]++;
+            }
+
+            const globalMatKey = isIntentional ? "Intentional Use (Prompt)" : "System Suggestion (Proactive)";
+            agg.maturity[globalMatKey][userType]++;
+
+            if (appName.toLowerCase().includes('gmail') || appName.toLowerCase().includes('mail')) {
+                const intentLabel = isIntentional ? '[Intentional]' : '[Proactive]';
+                const label = `${intentLabel} ${actionKey}`;
+                if (!agg.gmailActions[label]) agg.gmailActions[label] = initDataNode();
+                agg.gmailActions[label][matKey][userType]++;
+            }
+
+            if (dateRaw) {
+                let d = new Date(dateRaw);
+                if (isNaN(d.getTime()) && dateRaw.includes('/')) {
+                    const parts = dateRaw.split(' ')[0].split('/');
+                    if (parts.length >= 3) d = new Date(parts[2], parts[1] - 1, parts[0]);
+                }
+                if (!isNaN(d.getTime())) {
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const dayNum = String(d.getDate()).padStart(2, '0');
+                    const dayString = `${year}-${month}-${dayNum}`;
+                    if (!agg.trend[dayString]) agg.trend[dayString] = initDataNode();
+                    agg.trend[dayString][matKey][userType]++;
+                }
+            }
+
+            if (actorEmail !== "n/a") {
+                if (!agg.userStats[actorEmail]) agg.userStats[actorEmail] = { total: 0, advanced: 0, company: anagData.company };
+                agg.userStats[actorEmail].total++;
+                if (isIntentional) agg.userStats[actorEmail].advanced++;
+            }
+        }
+
+        function updateDashboardFromAggregators() {
+            const filterType = document.getElementById('globalFilter') ? document.getElementById('globalFilter').value : 'all';
+            const maturityFilter = document.getElementById('maturityGlobalFilter') ? document.getElementById('maturityGlobalFilter').value : 'all';
+            const isAll = filterType === 'all';
+
+            const filterNode = (node) => {
+                let sum = 0;
+                const keys = maturityFilter === 'all' ? ['intentional', 'proactive'] : [maturityFilter];
+                keys.forEach(k => {
+                    const subNode = node[k];
+                    if (filterType === 'all') sum += subNode.users + subNode.shared + subNode.external + subNode.unmapped;
+                    else sum += subNode[filterType] || 0;
+                });
+                return sum;
+            };
+
+            const filterNodeStacked = (node) => {
+                let res = { users: 0, shared: 0, external: 0, unmapped: 0 };
+                const keys = maturityFilter === 'all' ? ['intentional', 'proactive'] : [maturityFilter];
+                keys.forEach(k => {
+                    res.users += node[k].users;
+                    res.shared += node[k].shared;
+                    res.external += node[k].external;
+                    res.unmapped += node[k].unmapped;
+                });
+                return res;
+            };
+
+            const grandTotal = filterNode(agg.total);
+
+            if (grandTotal === 0) {
+                document.getElementById('kpiTotal').innerText = '0';
+                let splitText = document.getElementById('kpiTotalSplit');
+                if (splitText) splitText.innerText = '0 Usr | 0 Shd | 0 Ext | 0 Unm.';
+                document.getElementById('kpiUniqueActors').innerText = '0';
+                document.getElementById('kpiAdoptionRate').innerText = '0%';
+                document.getElementById('kpiTopApp').innerText = '-';
+                document.getElementById('kpiTopAppCount').innerText = '0 actions';
+                document.getElementById('kpiMaturity').innerText = '0% Intent.';
+                document.getElementById('generalTotalActions').innerText = '0';
+                document.getElementById('generalTotalUsers').innerText = '0';
+                document.getElementById('advancedUsersList').innerHTML = `<p class="text-sm text-slate-500 italic p-2">No usage detected for this filter.</p>`;
+
+                const chartIds = ['trendChart', 'maturityChart', 'appChart', 'countryChart', 'businessAreaChart', 'companyChart', 'categoryChart', 'gmailChart', 'eventCatChart', 'featureSrcChart'];
+                chartIds.forEach(id => {
+                    if (chartInstances[id]) {
+                        chartInstances[id].destroy();
+                        delete chartInstances[id];
+                    }
+                });
+                return;
+            }
+
+            let activeUsersSet = new Set();
+            let validActorsSet = new Set();
+
+            const typesToCheck = (filterType === 'all') ? ['users', 'shared', 'external', 'unmapped'] : [filterType];
+            const validTypes = (filterType === 'all') ? ['users', 'shared', 'external'] : [filterType];
+
+            typesToCheck.forEach(t => {
+                if (maturityFilter === 'all' || maturityFilter === 'intentional') agg.uniqueActorsIntentional[t].forEach(u => activeUsersSet.add(u));
+                if (maturityFilter === 'all' || maturityFilter === 'proactive') agg.uniqueActorsProactive[t].forEach(u => activeUsersSet.add(u));
+            });
+
+            validTypes.forEach(t => {
+                if (maturityFilter === 'all' || maturityFilter === 'intentional') agg.uniqueActorsIntentional[t].forEach(u => validActorsSet.add(u));
+                if (maturityFilter === 'all' || maturityFilter === 'proactive') agg.uniqueActorsProactive[t].forEach(u => validActorsSet.add(u));
+            });
+
+            const totActors = activeUsersSet.size;
+            let validActorsCount = validActorsSet.size;
+
+            let currentTotalEmp = 0;
+            if (filterType === 'all') currentTotalEmp = totalEmployees.total;
+            else if (filterType === 'users') currentTotalEmp = totalEmployees.users;
+            else if (filterType === 'shared') currentTotalEmp = totalEmployees.shared;
+            else if (filterType === 'external') currentTotalEmp = totalEmployees.external;
+            else if (filterType === 'unmapped') currentTotalEmp = 0;
+
+            const adoptionRate = currentTotalEmp > 0 ? Math.round((validActorsCount / currentTotalEmp) * 100) : 0;
+
+            const activeActionsTot = filterType === 'all'
+                ? (agg.total.intentional.users + agg.total.intentional.shared + agg.total.intentional.external + agg.total.intentional.unmapped)
+                : agg.total.intentional[filterType];
+
+            const maturityRate = grandTotal > 0 ? Math.round((activeActionsTot / grandTotal) * 100) : 0;
+
+            let topApp = "-"; let topAppCount = 0;
+            for (const [app, node] of Object.entries(agg.app)) {
+                const s = filterNode(node);
+                if (s > topAppCount) { topAppCount = s; topApp = app; }
+            }
+
+            document.getElementById('kpiTotal').innerText = grandTotal.toLocaleString('en-US');
+
+            let splitText = document.getElementById('kpiTotalSplit');
+            if (splitText) {
+                if (filterType === 'all') {
+                    const totalsStacked = filterNodeStacked(agg.total);
+                    splitText.innerText = `${formatNumberAbbr(totalsStacked.users)} Usr | ${formatNumberAbbr(totalsStacked.shared)} Shd | ${formatNumberAbbr(totalsStacked.external)} Ext | ${formatNumberAbbr(totalsStacked.unmapped)} Unm`;
+                } else {
+                    splitText.innerText = `Filtered view`;
+                }
+            }
+
+            document.getElementById('kpiUniqueActors').innerText = totActors.toLocaleString('en-US');
+            document.getElementById('kpiAdoptionRate').innerText = `${adoptionRate}%`;
+            document.getElementById('kpiTopApp').innerText = topApp;
+            document.getElementById('kpiTopAppCount').innerText = `${topAppCount.toLocaleString('en-US')} actions`;
+            document.getElementById('kpiMaturity').innerText = `${maturityRate}% Intent.`;
+
+            document.getElementById('generalTotalActions').innerText = grandTotal.toLocaleString('en-US');
+            document.getElementById('generalTotalUsers').innerText = totActors.toLocaleString('en-US');
+
+            const banner = document.getElementById('dataQualityBanner');
+            if (anomalousUsers.size > 0 && filterType === 'all') {
+                document.getElementById('anomalyCount').innerText = anomalousUsers.size.toLocaleString('en-US');
+                banner.classList.remove('hidden');
+                banner.classList.add('flex');
+            } else {
+                banner.classList.add('hidden');
+                banner.classList.remove('flex');
+            }
+
+            let usersArray = [];
+            for (const [email, stats] of Object.entries(agg.userStats)) {
+                const isOrphan = !anagraficaMap.hasOwnProperty(email);
+                const anagData = anagraficaMap[email] || {};
+
+                let include = false;
+                if (filterType === 'all') include = true;
+                else if (filterType === 'unmapped' && isOrphan) include = true;
+                else if (filterType === 'external' && !isOrphan && !anagData.isInternal) include = true;
+                else if (!isOrphan && anagData.isInternal) {
+                    const isShared = (anagData.departmentCode || "").toLowerCase().match(/(shared|condivis|servizi|generic)/);
+                    if (filterType === 'shared' && isShared) include = true;
+                    else if (filterType === 'users' && !isShared) include = true;
+                }
+
+                if (include) usersArray.push([email, stats]);
+            }
+
+            const sortedUsers = usersArray.sort((a, b) => b[1].advanced - a[1].advanced).slice(0, 20);
+            const listContainer = document.getElementById('advancedUsersList');
+            listContainer.innerHTML = '';
+
+            if (sortedUsers.length === 0 || sortedUsers[0][1].advanced === 0) {
+                listContainer.innerHTML = `<p class="text-sm text-slate-500 italic p-2">No intentional usage detected.</p>`;
+            } else {
+                sortedUsers.forEach((user, index) => {
+                    const percentage = Math.round((user[1].advanced / user[1].total) * 100);
+                    const isUnmapped = user[1].company.includes("Unmapped");
+                    const warningIcon = isUnmapped ? '<i data-lucide="shield-alert" class="w-3 h-3 inline text-red-500 ml-1" title="User not in registry"></i>' : '';
+
+                    listContainer.innerHTML += `
+                        <div class="flex justify-between items-center bg-white p-3 rounded border border-slate-100 shadow-sm hover:border-amber-200 transition mb-2">
+                            <div class="flex items-center gap-3 w-2/3">
+                                <div class="w-7 h-7 shrink-0 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-sm font-bold">${index + 1}</div>
+                                <div class="overflow-hidden">
+                                    <p class="text-sm font-bold text-slate-800 truncate" title="${user[0]}">${user[0].split('@')[0]} ${warningIcon}</p>
+                                    <p class="text-[10px] ${isUnmapped ? 'text-red-500 font-bold' : 'text-slate-500'} uppercase truncate">${user[1].company}</p>
+                                </div>
+                            </div>
+                            <div class="text-right whitespace-nowrap w-1/3">
+                                <p class="text-sm font-bold text-amber-600">${user[1].advanced} <span class="text-[10px] font-normal text-slate-400">prompt</span></p>
+                                <div class="w-full bg-slate-100 rounded-full h-1.5 mt-1"><div class="bg-amber-400 h-1.5 rounded-full" style="width: ${percentage}%"></div></div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+
+            let currentCountry = {};
+            for (let [k, v] of Object.entries(agg.country)) currentCountry[k] = isAll ? filterNodeStacked(v) : filterNode(v);
+
+            let currentCompany = {};
+            for (let [k, v] of Object.entries(agg.company)) currentCompany[k] = isAll ? filterNodeStacked(v) : filterNode(v);
+
+            let currentArea = {};
+            for (let [k, v] of Object.entries(agg.area)) currentArea[k] = isAll ? filterNodeStacked(v) : filterNode(v);
+
+            let currentCat = {};
+            for (let [k, v] of Object.entries(agg.cat)) currentCat[k] = isAll ? filterNodeStacked(v) : filterNode(v);
+
+            let currentGmail = {};
+            for (let [k, v] of Object.entries(agg.gmailActions)) currentGmail[k] = isAll ? filterNodeStacked(v) : filterNode(v);
+
+            let flatApp = {};
+            for (let [k, v] of Object.entries(agg.app)) flatApp[k] = filterNode(v);
+
+            let flatMaturity = {};
+            for (let [k, v] of Object.entries(agg.maturity)) flatMaturity[k] = filterNode(v);
+
+            let flatTrend = {};
+            for (let [k, v] of Object.entries(agg.trend)) flatTrend[k] = filterNode(v);
+
+            let flatEventCat = {};
+            for (let [k, v] of Object.entries(agg.eventCategory)) flatEventCat[k] = filterNode(v);
+
+            let flatFeatureSrc = {};
+            for (let [k, v] of Object.entries(agg.featureSource)) flatFeatureSrc[k] = filterNode(v);
+
+            const getUniqueCount = (node, typeArr, requireActive = false) => {
+                let users = new Set();
+                const keys = maturityFilter === 'all' ? ['intentional', 'proactive'] : [maturityFilter];
+                keys.forEach(k => {
+                    typeArr.forEach(t => {
+                        if (node[k] && node[k][t]) {
+                            node[k][t].forEach(u => {
+                                if (!requireActive || (anagraficaMap[u] && anagraficaMap[u].isActive)) {
+                                    users.add(u);
+                                }
+                            });
+                        }
+                    });
+                });
+                return users.size;
+            };
+
+            const ctryMetric = document.getElementById('countryMetric') ? document.getElementById('countryMetric').value : 'vol';
+            let ctryData = {};
+            if (ctryMetric === 'adopt') {
+                for (let c in agg.countryUsers) {
+                    let totalEmp = 0;
+                    let activeUsers = 0;
+
+                    const usersActive = getUniqueCount(agg.countryUsers[c], ['users'], true);
+                    const sharedActive = getUniqueCount(agg.countryUsers[c], ['shared'], true);
+                    const externalActive = getUniqueCount(agg.countryUsers[c], ['external'], true);
+
+                    if (isAll) {
+                        totalEmp = totalEmployeesByCountry[c] ? totalEmployeesByCountry[c].total : 0;
+                        activeUsers = usersActive + sharedActive + externalActive;
+                    } else if (filterType === 'users') {
+                        totalEmp = totalEmployeesByCountry[c] ? totalEmployeesByCountry[c].users : 0;
+                        activeUsers = usersActive;
+                    } else if (filterType === 'shared') {
+                        totalEmp = totalEmployeesByCountry[c] ? totalEmployeesByCountry[c].shared : 0;
+                        activeUsers = sharedActive;
+                    } else if (filterType === 'external') {
+                        totalEmp = totalEmployeesByCountry[c] ? totalEmployeesByCountry[c].external : 0;
+                        activeUsers = externalActive;
+                    }
+
+                    if (totalEmp > 0) {
+                        ctryData[c] = Math.min((activeUsers / totalEmp) * 100, 100);
+                    } else {
+                        ctryData[c] = 0;
+                    }
+                }
+            } else {
+                ctryData = currentCountry;
+            }
+
+            const compMetric = document.getElementById('companyMetric') ? document.getElementById('companyMetric').value : 'vol';
+            let compData = {};
+            if (compMetric === 'adopt') {
+                for (let c in agg.companyUsers) {
+                    let totalEmp = 0;
+                    let activeUsers = 0;
+
+                    const usersActive = getUniqueCount(agg.companyUsers[c], ['users'], true);
+                    const sharedActive = getUniqueCount(agg.companyUsers[c], ['shared'], true);
+                    const externalActive = getUniqueCount(agg.companyUsers[c], ['external'], true);
+
+                    if (isAll) {
+                        totalEmp = totalEmployeesByCompany[c] ? totalEmployeesByCompany[c].total : 0;
+                        activeUsers = usersActive + sharedActive + externalActive;
+                    } else if (filterType === 'users') {
+                        totalEmp = totalEmployeesByCompany[c] ? totalEmployeesByCompany[c].users : 0;
+                        activeUsers = usersActive;
+                    } else if (filterType === 'shared') {
+                        totalEmp = totalEmployeesByCompany[c] ? totalEmployeesByCompany[c].shared : 0;
+                        activeUsers = sharedActive;
+                    } else if (filterType === 'external') {
+                        totalEmp = totalEmployeesByCompany[c] ? totalEmployeesByCompany[c].external : 0;
+                        activeUsers = externalActive;
+                    }
+
+                    if (totalEmp > 0) {
+                        compData[c] = Math.min((activeUsers / totalEmp) * 100, 100);
+                    } else {
+                        compData[c] = 0;
+                    }
+                }
+            } else {
+                compData = currentCompany;
+            }
+
+            const paletteBlue = ['#004B86', '#62B5E5', '#74787B', '#424242', '#DF7C01', '#78BE20', '#8BB8E9', '#004B86', '#62B5E5', '#74787B'];
+
+            drawChart('trendChart', 'line', flatTrend, ['#004B86'], false, false, false, false);
+            drawChart('maturityChart', 'pie', flatMaturity, 'maturity', true, false, false, false);
+            drawChart('appChart', 'doughnut', flatApp, paletteBlue, true, false, false, false);
+            drawChart('countryChart', 'bar', ctryData, 'red', isAll, true, ctryMetric === 'adopt', isAll);
+            drawChart('businessAreaChart', 'bar', currentArea, 'amber', isAll, true, false, isAll);
+            drawChart('companyChart', 'bar', compData, 'blue', isAll, true, compMetric === 'adopt', isAll);
+            drawChart('categoryChart', 'bar', currentCat, 'purple', isAll, true, false, isAll);
+            drawChart('gmailChart', 'bar', currentGmail, 'gmail', isAll, true, false, isAll);
+
+            drawChart('eventCatChart', 'pie', flatEventCat, paletteBlue, true, false, false, false);
+            drawChart('featureSrcChart', 'doughnut', flatFeatureSrc, paletteBlue, true, false, false, false);
+        }
+
+        const colorMaps = {
+            blue:   { dark: '#004B86', light: '#8BB8E9', unmapped: '#74787B' },
+            red:    { dark: '#004B86', light: '#62B5E5', unmapped: '#74787B' },
+            amber:  { dark: '#DF7C01', light: '#62B5E5', unmapped: '#74787B' },
+            purple: { dark: '#424242', light: '#8BB8E9', unmapped: '#74787B' }
+        };
+
+        function drawChart(id, type, dataObj, colorTheme, showLegend = false, horizontal = false, isPercentage = false, isStacked = true) {
+            const canvasElement = document.getElementById(id);
+            if (!canvasElement) return;
+
+            if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+
+            let entries = Object.entries(dataObj);
+            if (entries.length === 0) {
+                canvasElement.parentElement.style.height = horizontal ? '400px' : (type === 'line' ? '400px' : '500px');
+                return;
+            }
+
+            if (type !== 'line') {
+                if (isStacked && typeof entries[0][1] === 'object') {
+                    entries.sort((a, b) => (b[1].users + b[1].shared + b[1].external + b[1].unmapped) - (a[1].users + a[1].shared + a[1].external + a[1].unmapped));
+                } else {
+                    entries.sort((a, b) => b[1] - a[1]);
+                }
+            } else {
+                entries.sort((a, b) => a[0].localeCompare(b[0]));
+            }
+
+            const topN = (type === 'bar' && horizontal) ? entries.slice(0, 250) : entries;
+
+            let labels = topN.map(a => a[0]);
+            let datasets = [];
+
+            if (isStacked && type !== 'line' && typeof topN[0][1] === 'object') {
+                let dataUsers = topN.map(a => a[1].users || 0);
+                let dataShared = topN.map(a => a[1].shared || 0);
+                let dataExternal = topN.map(a => a[1].external || 0);
+                let dataUnmapped = topN.map(a => a[1].unmapped || 0);
+
+                let bgUsers = [], bgShared = [], bgExternal = [], bgUnmapped = [];
+                labels.forEach(l => {
+                    if (colorTheme === 'gmail') {
+                        if (l.includes('[Intentional]') || l.includes('Prompt')) {
+                            bgUsers.push('#004B86'); bgShared.push('#62B5E5'); bgExternal.push('#8BB8E9'); bgUnmapped.push('#74787B');
+                        } else {
+                            bgUsers.push('#424242'); bgShared.push('#74787B'); bgExternal.push('#DF7C01'); bgUnmapped.push('#cbcdd0');
+                        }
+                    } else {
+                        bgUsers.push('#004B86');
+                        bgShared.push('#62B5E5');
+                        bgExternal.push('#DF7C01');
+                        bgUnmapped.push('#74787B');
+                    }
+                });
+
+                datasets = [
+                    { label: 'Internal Users', data: dataUsers, backgroundColor: bgUsers, borderColor: 'transparent', fill: false },
+                    { label: 'Shared Mailboxes', data: dataShared, backgroundColor: bgShared, borderColor: 'transparent', fill: false },
+                    { label: 'External Users', data: dataExternal, backgroundColor: bgExternal, borderColor: 'transparent', fill: false },
+                    { label: 'Unmapped', data: dataUnmapped, backgroundColor: bgUnmapped, borderColor: 'transparent', fill: false }
+                ];
+            } else {
+                let data = topN.map(a => a[1]);
+                let bgColors;
+
+                if (colorTheme === 'maturity' || colorTheme === 'gmail') {
+                    bgColors = labels.map(l => l.includes('Intent') || l.includes('Prompt') ? '#004B86' : '#74787B');
+                } else if (Array.isArray(colorTheme)) {
+                    bgColors = colorTheme;
+                } else {
+                    bgColors = colorMaps[colorTheme] ? colorMaps[colorTheme].dark : '#1e40af';
+                }
+
+                datasets = [{
+                    label: 'Usages',
+                    data: data,
+                    backgroundColor: bgColors,
+                    borderWidth: (type === 'pie' || type === 'doughnut') ? 2 : (type === 'line' ? 2 : 0),
+                    borderColor: type === 'line' ? bgColors[0] : '#ffffff',
+                    tension: 0.3,
+                    fill: type === 'line'
+                }];
+
+                if (type === 'line') {
+                    datasets[0].backgroundColor = 'rgba(37, 99, 235, 0.2)';
+                    datasets[0].pointBackgroundColor = bgColors[0];
+                    datasets[0].pointBorderColor = '#ffffff';
+                    datasets[0].pointBorderWidth = 2;
+                    datasets[0].pointRadius = 4;
+                    datasets[0].pointHoverRadius = 6;
+                }
+            }
+
+            const padVal = (type === 'pie' || type === 'doughnut') ? 35 : 10;
+            if (horizontal) {
+                const rowH = isStacked ? 40 : 50;
+                const calculatedHeight = Math.max(450, labels.length * rowH);
+                canvasElement.parentElement.style.height = calculatedHeight + 'px';
+            } else {
+                canvasElement.parentElement.style.height = type === 'line' ? '400px' : '520px';
+            }
+
+            const config = {
+                type: type,
+                data: { labels: labels, datasets: datasets },
+                options: {
+                    indexAxis: horizontal ? 'y' : 'x',
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'nearest', intersect: true },
+                    layout: { padding: { top: horizontal ? padVal : padVal + 20, right: horizontal ? 100 : padVal, bottom: padVal, left: padVal } },
+                    plugins: {
+                        legend: {
+                            display: showLegend,
+                            position: 'right',
+                            labels: {
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        },
+                        datalabels: {
+                            display: function (context) {
+                                if (context.chart.config.type === 'line') return false;
+                                return context.dataset.data[context.dataIndex] > 0;
+                            },
+                            color: '#1e293b',
+                            backgroundColor: (ctx) => {
+                                if (type === 'bar' || (type === 'pie' || type === 'doughnut')) return 'rgba(255,255,255,0.9)';
+                                return null;
+                            },
+                            borderRadius: 3,
+                            padding: 3,
+                            anchor: 'end',
+                            align: 'end',
+                            offset: 4,
+                            clamp: false,
+                            font: {
+                                weight: 'bold',
+                                size: type === 'line' ? 9 : 11
+                            },
+                            formatter: (value, ctx) => {
+                                if (isPercentage) return value.toFixed(1) + '%';
+                                if (type === 'line') return value.toLocaleString('en-US');
+
+                                let shortVal = formatNumberAbbr(value);
+
+                                if (!isStacked && (type === 'pie' || type === 'doughnut')) {
+                                    const dataArr = ctx.chart.data.datasets[ctx.datasetIndex].data;
+                                    const sum = dataArr.reduce((a, b) => a + b, 0);
+                                    if (sum === 0) return shortVal;
+
+                                    const perc = (value * 100 / sum).toFixed(1).replace(/\.0$/, '') + '%';
+                                    if (value / sum < 0.05) return shortVal;
+                                    return `${shortVal} (${perc})`;
+                                }
+                                return shortVal;
+                            }
+                        }
+                    },
+                    scales: (type === 'bar') ? {
+                        [horizontal ? 'x' : 'y']: {
+                            stacked: isStacked, beginAtZero: true,
+                            max: isPercentage ? 100 : undefined,
+                            grid: { borderDash: [2, 4], color: '#e2e8f0' },
+                            ticks: { callback: function (value) { return isPercentage ? value + '%' : value; } }
+                        },
+                        [horizontal ? 'y' : 'x']: { stacked: isStacked, grid: { display: false }, ticks: { font: { size: 10 } } }
+                    } : (type === 'line' ? {
+                        y: { beginAtZero: true, grid: { borderDash: [2, 4] } },
+                        x: { grid: { display: false } }
+                    } : {})
+                }
+            };
+
+            if (type === 'doughnut' || type === 'pie') config.options.cutout = type === 'pie' ? '0%' : '50%';
+            try { chartInstances[id] = new Chart(canvasElement.getContext('2d'), config); } catch (err) { }
+        }
+    </script>
+</body>
+
+</html>
