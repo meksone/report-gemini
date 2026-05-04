@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gemini AI - Executive Report V6.8.13</title>
+    <title>Gemini AI - Executive Report V6.8.15</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -1304,7 +1304,7 @@
             }
 
             const globalMatKey = isIntentional ? "Intentional Use (Prompt)" : "System Suggestion (Proactive)";
-            agg.maturity[globalMatKey][userType]++;
+            agg.maturity[globalMatKey][matKey][userType]++;
 
             if (appName.toLowerCase().includes('gmail') || appName.toLowerCase().includes('mail')) {
                 const intentLabel = isIntentional ? '[Intentional]' : '[Proactive]';
@@ -1757,7 +1757,20 @@
                             position: 'right',
                             labels: {
                                 boxWidth: 12,
-                                font: { size: 11 }
+                                font: { size: 11 },
+                                generateLabels: (chart) => {
+                                    const base = Chart.defaults.plugins.legend.labels.generateLabels(chart);
+                                    if (type !== 'pie' && type !== 'doughnut') return base;
+                                    const dataset = chart.data.datasets[0];
+                                    if (!dataset) return base;
+                                    const total = dataset.data.reduce((a, b) => a + b, 0);
+                                    return base.map((item, i) => {
+                                        const val = dataset.data[i] ?? 0;
+                                        const perc = total > 0 ? (val * 100 / total).toFixed(1) : '0.0';
+                                        item.text = `${item.text}  ${formatNumberAbbr(val)} (${perc}%)`;
+                                        return item;
+                                    });
+                                }
                             }
                         },
                         datalabels: {
